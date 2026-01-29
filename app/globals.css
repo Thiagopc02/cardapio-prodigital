@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+body {
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* esconder scrollbar */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* animação do carrinho */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
