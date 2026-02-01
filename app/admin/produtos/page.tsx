@@ -13,32 +13,12 @@ type Produto = {
   imagem: string;
 };
 
-/* ================= PRODUTOS INICIAIS (APRESENTAÇÃO) ================= */
+/* ================= PRODUTOS FIXOS (APRESENTAÇÃO) ================= */
 const PRODUTOS_INICIAIS: Produto[] = [
-  {
-    id: 1,
-    nome: "X-Burger",
-    preco: 18,
-    imagem: "/produtos/x-burger.png",
-  },
-  {
-    id: 2,
-    nome: "X-Salada",
-    preco: 22,
-    imagem: "/produtos/x-salada.png",
-  },
-  {
-    id: 3,
-    nome: "Batata Frita",
-    preco: 12,
-    imagem: "/produtos/batata.png",
-  },
-  {
-    id: 4,
-    nome: "Combo Kids",
-    preco: 15,
-    imagem: "/produtos/kids.png",
-  },
+  { id: 1, nome: "X-Burger", preco: 18, imagem: "/produtos/x-burger.png" },
+  { id: 2, nome: "X-Salada", preco: 22, imagem: "/produtos/x-salada.png" },
+  { id: 3, nome: "Batata Frita", preco: 12, imagem: "/produtos/batata.png" },
+  { id: 4, nome: "Combo Kids", preco: 15, imagem: "/produtos/kids.png" },
 ];
 
 export default function Produtos() {
@@ -55,8 +35,27 @@ export default function Produtos() {
   const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
   const [nome, setNome] = useState("");
   const [preco, setPreco] = useState("");
+  const [imagem, setImagem] = useState<string>("");
   const [filtro, setFiltro] = useState("");
   const [ordem, setOrdem] = useState<"asc" | "desc">("asc");
+
+  /* ================= DRAG & DROP ================= */
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagem(url);
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setImagem(url);
+    }
+  }
 
   /* ================= FILTRO + ORDENAÇÃO ================= */
   const produtosFiltrados = useMemo(() => {
@@ -79,12 +78,13 @@ export default function Produtos() {
         id: Date.now(),
         nome,
         preco: Number(preco),
-        imagem: "/produtos/x-burger.png", // padrão
+        imagem: imagem || "/produtos/x-burger.png",
       },
     ]);
 
     setNome("");
     setPreco("");
+    setImagem("");
   }
 
   function excluirProduto(id: number) {
@@ -113,6 +113,42 @@ export default function Produtos() {
           onChange={(e) => setPreco(e.target.value)}
           className="w-full p-2 rounded bg-zinc-800"
         />
+
+        {/* IMAGEM */}
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleDrop}
+          className="border-2 border-dashed border-zinc-600 rounded-lg p-4 text-center cursor-pointer bg-zinc-800"
+        >
+          {imagem ? (
+            <Image
+              src={imagem}
+              alt="Preview"
+              width={120}
+              height={120}
+              className="mx-auto rounded"
+            />
+          ) : (
+            <p className="text-zinc-400">
+              Arraste a imagem aqui ou clique para selecionar
+            </p>
+          )}
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            className="hidden"
+            id="fileInput"
+          />
+        </div>
+
+        <label
+          htmlFor="fileInput"
+          className="block text-center text-sm text-green-400 cursor-pointer"
+        >
+          Selecionar imagem
+        </label>
 
         <button
           onClick={adicionarProduto}
@@ -165,7 +201,7 @@ export default function Produtos() {
 
             <button
               onClick={() => excluirProduto(produto.id)}
-              className="text-red-500 hover:text-red-400 text-sm"
+              className="text-red-500 hover:text-red-400"
             >
               🗑️
             </button>
