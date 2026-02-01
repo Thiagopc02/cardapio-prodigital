@@ -6,22 +6,16 @@ import { loginAdmin } from "@/src/utils/adminAuth";
 
 export default function AdminLogin() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
 
   function handleLogin() {
-    setErro("");
-
-    if (!email || !senha) {
-      setErro("Preencha email e senha.");
-      return;
-    }
-
-    const autorizado = loginAdmin(email);
+    const autorizado = loginAdmin(email, senha);
 
     if (!autorizado) {
-      setErro("Este email não tem permissão de administrador.");
+      setErro("Email ou senha inválidos.");
       return;
     }
 

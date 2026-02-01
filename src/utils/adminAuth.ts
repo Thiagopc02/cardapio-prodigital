@@ -1,17 +1,20 @@
 const ADMIN_EMAIL = "proprietario2026@gmail.com";
+const ADMIN_PASSWORD = "12345678";
 
-export function loginAdmin(email: string) {
-  if (email !== ADMIN_EMAIL) {
+export function loginAdmin(email: string, senha: string) {
+  if (email !== ADMIN_EMAIL || senha !== ADMIN_PASSWORD) {
     return false;
   }
 
-  localStorage.setItem(
-    "admin_auth",
-    JSON.stringify({
-      email,
-      logged: true,
-    })
-  );
+  if (typeof window !== "undefined") {
+    localStorage.setItem(
+      "admin_auth",
+      JSON.stringify({
+        email,
+        logged: true,
+      })
+    );
+  }
 
   return true;
 }
@@ -31,5 +34,7 @@ export function isAdminLogged(): boolean {
 }
 
 export function logoutAdmin() {
-  localStorage.removeItem("admin_auth");
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("admin_auth");
+  }
 }
