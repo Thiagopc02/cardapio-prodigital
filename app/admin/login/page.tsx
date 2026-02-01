@@ -1,48 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { loginAdmin } from "@/src/utils/adminAuth";
 
 export default function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
 
-  function login() {
-    // ADMIN FAKE (depois trocamos por Firebase)
-    if (
-      email === "admin@cardapio.com" &&
-      senha === "123456"
-    ) {
-      localStorage.setItem("admin_auth", "true");
-      router.push("/admin/dashboard");
-    } else {
-      alert("Acesso negado");
+  function handleLogin() {
+    setErro("");
+
+    if (!email || !senha) {
+      setErro("Preencha email e senha.");
+      return;
     }
+
+    const autorizado = loginAdmin(email);
+
+    if (!autorizado) {
+      setErro("Este email não tem permissão de administrador.");
+      return;
+    }
+
+    router.push("/admin/dashboard");
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="bg-zinc-900 p-6 rounded-xl w-full max-w-sm">
-        <h1 className="text-xl font-bold mb-4">Login Administrativo</h1>
+        <h1 className="text-xl font-bold mb-4 text-center">
+          Login Administrativo
+        </h1>
+
+        {erro && (
+          <p className="text-red-500 text-sm mb-3 text-center">{erro}</p>
+        )}
 
         <input
+          type="email"
           placeholder="Email"
-          className="w-full p-2 mb-3 rounded bg-zinc-800"
+          className="w-full mb-3 p-2 rounded bg-zinc-800"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
-          placeholder="Senha"
           type="password"
-          className="w-full p-2 mb-4 rounded bg-zinc-800"
+          placeholder="Senha"
+          className="w-full mb-4 p-2 rounded bg-zinc-800"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
         />
 
         <button
-          onClick={login}
+          onClick={handleLogin}
           className="w-full bg-green-500 text-black py-2 rounded font-bold"
         >
           Entrar

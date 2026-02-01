@@ -1,4 +1,18 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { isAdminLogged } from "@/src/utils/adminAuth";
+
 export default function Dashboard() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isAdminLogged()) {
+      router.replace("/admin/login");
+    }
+  }, [router]);
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Dashboard</h1>

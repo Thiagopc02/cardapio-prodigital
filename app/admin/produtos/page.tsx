@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { isAdminLogged } from "@/src/utils/adminAuth";
 
 type Produto = {
   nome: string;
@@ -8,15 +10,23 @@ type Produto = {
 };
 
 export default function Produtos() {
+  const router = useRouter();
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [nome, setNome] = useState("");
   const [preco, setPreco] = useState("");
 
+  useEffect(() => {
+    if (!isAdminLogged()) {
+      router.replace("/admin/login");
+    }
+  }, [router]);
+
   function adicionarProduto() {
     if (!nome || !preco) return;
 
-    setProdutos([
-      ...produtos,
+    setProdutos((prev) => [
+      ...prev,
       {
         nome,
         preco: Number(preco),

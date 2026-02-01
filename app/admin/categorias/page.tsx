@@ -1,14 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { isAdminLogged } from "@/src/utils/adminAuth";
 
 export default function Categorias() {
+  const router = useRouter();
+
   const [categorias, setCategorias] = useState<string[]>([]);
   const [nome, setNome] = useState("");
 
+  useEffect(() => {
+    if (!isAdminLogged()) {
+      router.replace("/admin/login");
+    }
+  }, [router]);
+
   function adicionarCategoria() {
     if (!nome.trim()) return;
-    setCategorias([...categorias, nome]);
+    setCategorias((prev) => [...prev, nome]);
     setNome("");
   }
 
