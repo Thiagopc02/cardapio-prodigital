@@ -4,35 +4,47 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isAdminLogged } from "@/src/utils/adminAuth";
 
+/* ================= TIPOS ================= */
 type Produto = {
+  id: number;
   nome: string;
   preco: number;
 };
 
+/* ================= PRODUTOS INICIAIS ================= */
+const PRODUTOS_INICIAIS: Produto[] = [
+  { id: 1, nome: "X-Burger", preco: 18 },
+  { id: 2, nome: "X-Salada", preco: 22 },
+  { id: 3, nome: "Batata Frita", preco: 12 },
+  { id: 4, nome: "Combo Kids", preco: 15 },
+];
+
 export default function Produtos() {
   const router = useRouter();
 
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  /* ✅ Estado já inicializado corretamente */
+  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
   const [nome, setNome] = useState("");
   const [preco, setPreco] = useState("");
 
+  /* ================= PROTEÇÃO ADMIN ================= */
   useEffect(() => {
     if (!isAdminLogged()) {
       router.replace("/admin/login");
     }
   }, [router]);
 
+  /* ================= ADICIONAR PRODUTO ================= */
   function adicionarProduto() {
-    if (!nome || !preco) return;
+    if (!nome.trim() || !preco) return;
 
-    setProdutos((prev) => [
-      ...prev,
-      {
-        nome,
-        preco: Number(preco),
-      },
-    ]);
+    const novoProduto: Produto = {
+      id: Date.now(),
+      nome,
+      preco: Number(preco),
+    };
 
+    setProdutos((prev) => [...prev, novoProduto]);
     setNome("");
     setPreco("");
   }
@@ -41,6 +53,7 @@ export default function Produtos() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Produtos</h1>
 
+      {/* FORMULÁRIO */}
       <div className="bg-zinc-900 p-4 rounded-xl mb-6">
         <input
           type="text"
@@ -66,14 +79,17 @@ export default function Produtos() {
         </button>
       </div>
 
+      {/* LISTAGEM */}
       <div className="space-y-2">
-        {produtos.map((produto, index) => (
+        {produtos.map((produto) => (
           <div
-            key={index}
-            className="bg-zinc-800 p-3 rounded flex justify-between"
+            key={produto.id}
+            className="bg-zinc-800 p-3 rounded flex justify-between items-center"
           >
-            <span>{produto.nome}</span>
-            <span>R$ {produto.preco.toFixed(2)}</span>
+            <span className="font-medium">{produto.nome}</span>
+            <span className="text-green-400 font-bold">
+              R$ {produto.preco.toFixed(2)}
+            </span>
           </div>
         ))}
       </div>
