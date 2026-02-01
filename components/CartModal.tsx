@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { obterCliente, salvarCliente, ClienteLocal } from "@/src/utils/clienteStorage";
+import { obterCliente, salvarCliente } from "@/src/utils/clienteStorage";
 
 /* ================= TIPOS ================= */
 type Endereco = {
@@ -46,11 +46,9 @@ export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen } = useCart();
   const router = useRouter();
 
-  /* ================= CLIENTE ================= */
-  const cliente = (() => {
-    if (typeof window === "undefined") return null;
-    return obterCliente();
-  })();
+  /* ================= CLIENTE (LOGIN FAKE) ================= */
+  const cliente =
+    typeof window !== "undefined" ? obterCliente() : null;
 
   /* ================= STATES ================= */
   const [telefone, setTelefone] = useState(cliente?.telefone ?? "");
@@ -113,8 +111,10 @@ export default function CartModal() {
     mensagem += `%0A👤 *Nome:* ${nome}`;
     mensagem += `%0A📞 *Telefone:* ${telefone}`;
     mensagem += `%0A📍 *Endereço:* ${endereco.rua}, ${endereco.numero} - ${endereco.bairro}`;
-    if (endereco.complemento)
+
+    if (endereco.complemento) {
       mensagem += ` (${endereco.complemento})`;
+    }
 
     mensagem += `%0A💳 *Pagamento:* ${
       tipoPagamento === "agora"
@@ -144,11 +144,13 @@ export default function CartModal() {
   /* ================= UI ================= */
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* OVERLAY */}
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
       />
 
+      {/* MODAL */}
       <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl p-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between mb-3">
           <h2 className="font-bold text-lg">Seu carrinho</h2>
@@ -158,7 +160,10 @@ export default function CartModal() {
         {/* ITENS */}
         <div className="space-y-3">
           {carrinho.map((item) => (
-            <div key={item.id} className="flex gap-3 bg-zinc-800 p-3 rounded-xl">
+            <div
+              key={item.id}
+              className="flex gap-3 bg-zinc-800 p-3 rounded-xl"
+            >
               <Image
                 src={item.imagem}
                 alt={item.nome}
@@ -187,7 +192,9 @@ export default function CartModal() {
           <input
             placeholder="Telefone"
             value={telefone}
-            onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) =>
+              setTelefone(e.target.value.replace(/\D/g, ""))
+            }
             className="w-full p-2 rounded bg-zinc-800"
           />
 
@@ -202,7 +209,10 @@ export default function CartModal() {
             placeholder="CEP"
             value={endereco.cep}
             onChange={(e) =>
-              setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })
+              setEndereco({
+                ...endereco,
+                cep: e.target.value.replace(/\D/g, ""),
+              })
             }
             className="w-full p-2 rounded bg-zinc-800"
           />
@@ -239,12 +249,16 @@ export default function CartModal() {
             placeholder="Complemento (opcional)"
             value={endereco.complemento}
             onChange={(e) =>
-              setEndereco({ ...endereco, complemento: e.target.value })
+              setEndereco({
+                ...endereco,
+                complemento: e.target.value,
+              })
             }
             className="w-full p-2 rounded bg-zinc-800"
           />
         </div>
 
+        {/* CTA LOGIN */}
         {!cliente?.cadastrado && (
           <button
             onClick={irParaLogin}
