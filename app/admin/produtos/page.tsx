@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isAdminLogged } from "@/src/utils/adminAuth";
 
@@ -13,7 +13,7 @@ type Produto = {
   imagem: string;
 };
 
-/* ================= PRODUTOS MOCK (APRESENTAÇÃO) ================= */
+/* ================= PRODUTOS INICIAIS (APRESENTAÇÃO) ================= */
 const PRODUTOS_INICIAIS: Produto[] = [
   {
     id: 1,
@@ -44,45 +44,66 @@ const PRODUTOS_INICIAIS: Produto[] = [
 export default function Produtos() {
   const router = useRouter();
 
-  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
-  const [nome, setNome] = useState("");
-  const [preco, setPreco] = useState("");
-
-  /* ================= PROTEÇÃO ADMIN ================= */
+  /* ================= AUTH ================= */
   useEffect(() => {
     if (!isAdminLogged()) {
       router.replace("/admin/login");
     }
   }, [router]);
 
-  /* ================= ADICIONAR PRODUTO (DEMO) ================= */
+  /* ================= STATES ================= */
+  const [produtos, setProdutos] = useState<Produto[]>(PRODUTOS_INICIAIS);
+  const [nome, setNome] = useState("");
+  const [preco, setPreco] = useState("");
+  const [filtro, setFiltro] = useState("");
+  const [ordem, setOrdem] = useState<"asc" | "desc">("asc");
+
+  /* ================= FILTRO + ORDENAÇÃO ================= */
+  const produtosFiltrados = useMemo(() => {
+    return produtos
+      .filter((p) =>
+        p.nome.toLowerCase().includes(filtro.toLowerCase())
+      )
+      .sort((a, b) =>
+        ordem === "asc" ? a.preco - b.preco : b.preco - a.preco
+      );
+  }, [produtos, filtro, ordem]);
+
+  /* ================= AÇÕES ================= */
   function adicionarProduto() {
     if (!nome || !preco) return;
 
-    const novoProduto: Produto = {
-      id: Date.now(),
-      nome,
-      preco: Number(preco),
-      imagem: "/produtos/refri.png", // imagem padrão para demo
-    };
+    setProdutos((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        nome,
+        preco: Number(preco),
+        imagem: "/produtos/x-burger.png", // padrão
+      },
+    ]);
 
-    setProdutos((prev) => [...prev, novoProduto]);
     setNome("");
     setPreco("");
   }
 
+  function excluirProduto(id: number) {
+    if (!confirm("Deseja excluir este produto?")) return;
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  /* ================= UI ================= */
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Produtos</h1>
 
-      {/* FORMULÁRIO */}
-      <div className="bg-zinc-900 p-4 rounded-xl mb-6 max-w-xl">
+      {/* ================= FORM ================= */}
+      <div className="bg-zinc-900 p-4 rounded-xl mb-6 space-y-3">
         <input
-          type="text"
           placeholder="Nome do produto"
           value={nome}
           onChange={(e) => setNome(e.target.value)}
-          className="w-full p-2 mb-3 rounded bg-zinc-800"
+          className="w-full p-2 rounded bg-zinc-800"
         />
 
         <input
@@ -90,32 +111,50 @@ export default function Produtos() {
           placeholder="Preço"
           value={preco}
           onChange={(e) => setPreco(e.target.value)}
-          className="w-full p-2 mb-3 rounded bg-zinc-800"
+          className="w-full p-2 rounded bg-zinc-800"
         />
 
         <button
           onClick={adicionarProduto}
           className="bg-green-500 text-black px-4 py-2 rounded font-bold w-full sm:w-auto"
         >
-          Adicionar produto
+          ➕ Adicionar produto
         </button>
       </div>
 
-      {/* LISTAGEM RESPONSIVA */}
+      {/* ================= FILTROS ================= */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <input
+          placeholder="Filtrar por nome"
+          value={filtro}
+          onChange={(e) => setFiltro(e.target.value)}
+          className="flex-1 p-2 rounded bg-zinc-800"
+        />
+
+        <select
+          value={ordem}
+          onChange={(e) => setOrdem(e.target.value as "asc" | "desc")}
+          className="p-2 rounded bg-zinc-800"
+        >
+          <option value="asc">Preço ↑</option>
+          <option value="desc">Preço ↓</option>
+        </select>
+      </div>
+
+      {/* ================= LISTAGEM ================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {produtos.map((produto) => (
+        {produtosFiltrados.map((produto) => (
           <div
             key={produto.id}
-            className="bg-zinc-900 rounded-xl p-4 flex items-center gap-4"
+            className="bg-zinc-900 rounded-xl p-4 flex gap-4 items-center"
           >
-            <div className="relative w-20 h-20 flex-shrink-0">
-              <Image
-                src={produto.imagem}
-                alt={produto.nome}
-                fill
-                className="object-cover rounded-lg"
-              />
-            </div>
+            <Image
+              src={produto.imagem}
+              alt={produto.nome}
+              width={80}
+              height={80}
+              className="rounded-lg object-cover"
+            />
 
             <div className="flex-1">
               <p className="font-semibold">{produto.nome}</p>
@@ -123,6 +162,13 @@ export default function Produtos() {
                 R$ {produto.preco.toFixed(2)}
               </p>
             </div>
+
+            <button
+              onClick={() => excluirProduto(produto.id)}
+              className="text-red-500 hover:text-red-400 text-sm"
+            >
+              🗑️
+            </button>
           </div>
         ))}
       </div>
