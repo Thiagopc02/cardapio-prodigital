@@ -1,70 +1,90 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState } from "react";
+import { Produto } from "@/src/types/Produto";
 
+/* ================= TIPOS ================= */
 
-export type Produto = {
-  id: number;
-  nome: string;
-  preco: number;
-  imagem: string;
+type ItemCarrinho = Produto & {
+  qtd: number;
 };
 
-type CartItem = Produto & { qtd: number };
-
 type CartContextType = {
-  carrinho: CartItem[];
-  adicionar: (produto: Produto) => void;
-  remover: (produto: Produto) => void;
+  carrinho: ItemCarrinho[];
+  adicionarProduto: (produto: Produto) => void;
+  removerProduto: (id: string) => void;
+  getQuantidade: (id: string) => number;
   total: number;
   cartOpen: boolean;
   setCartOpen: (v: boolean) => void;
 };
 
+/* ================= CONTEXT ================= */
+
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [carrinho, setCarrinho] = useState<CartItem[]>([]);
+/* ================= PROVIDER ================= */
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
 
-  function adicionar(produto: Produto) {
+  function adicionarProduto(produto: Produto) {
     setCarrinho((prev) => {
-      const existe = prev.find((p) => p.id === produto.id);
-      if (existe) {
+      const existente = prev.find((p) => p.id === produto.id);
+
+      if (existente) {
         return prev.map((p) =>
           p.id === produto.id ? { ...p, qtd: p.qtd + 1 } : p
         );
       }
+
       return [...prev, { ...produto, qtd: 1 }];
     });
   }
 
-  function remover(produto: Produto) {
+  function removerProduto(id: string) {
     setCarrinho((prev) =>
       prev
         .map((p) =>
-          p.id === produto.id ? { ...p, qtd: p.qtd - 1 } : p
+          p.id === id ? { ...p, qtd: p.qtd - 1 } : p
         )
         .filter((p) => p.qtd > 0)
     );
   }
 
+  function getQuantidade(id: string) {
+    return carrinho.find((p) => p.id === id)?.qtd || 0;
+  }
+
   const total = carrinho.reduce(
-    (acc, item) => acc + item.preco * item.qtd,
+    (soma, item) => soma + item.preco * item.qtd,
     0
   );
 
   return (
     <CartContext.Provider
-      value={{ carrinho, adicionar, remover, total, cartOpen, setCartOpen }}
+      value={{
+        carrinho,
+        adicionarProduto,
+        removerProduto,
+        getQuantidade,
+        total,
+        cartOpen,
+        setCartOpen,
+      }}
     >
       {children}
     </CartContext.Provider>
   );
 }
 
+/* ================= HOOK ================= */
+
 export function useCart() {
   const ctx = useContext(CartContext);
-  if (!ctx) throw new Error("useCart deve ser usado dentro do CartProvider");
+  if (!ctx) {
+    throw new Error("useCart deve ser usado dentro de CartProvider");
+  }
   return ctx;
 }
