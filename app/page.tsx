@@ -10,32 +10,17 @@ import CartModal from "@/components/CartModal";
 import {
   Produto,
   getProdutosAtivos,
+  getCategorias,
 } from "@/firebase/produtos";
-
-/* ================= NORMALIZAÇÃO ================= */
-
-// transforma qualquer texto em categoria técnica
-function normalizarCategoria(valor: string) {
-  return valor
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove acentos
-    .trim();
-}
-
-/* ================= LABELS ================= */
 
 const CATEGORIAS_LABELS: Record<string, string> = {
   lanches: "Lanches",
   bebidas: "Bebidas",
   combos: "Combos",
   sobremesas: "Sobremesas",
-  lancamentos: "Lançamentos",
 };
 
-/* ordem visual */
 const ORDEM_CATEGORIAS = [
-  "lancamentos",
   "lanches",
   "bebidas",
   "combos",
@@ -45,23 +30,19 @@ const ORDEM_CATEGORIAS = [
 export default function Home() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const lista = await getProdutosAtivos();
+      const listaProdutos = await getProdutosAtivos();
+      const listaCategorias = await getCategorias();
 
-      // normaliza categorias
-      const produtosNormalizados = lista.map((p) => ({
-        ...p,
-        categoria: normalizarCategoria(p.categoria),
-      }));
+      console.log("🔥 PRODUTOS:", listaProdutos);
+      console.log("🔥 CATEGORIAS:", listaCategorias);
 
-      const categoriasUnicas = Array.from(
-        new Set(produtosNormalizados.map((p) => p.categoria))
-      );
-
-      setProdutos(produtosNormalizados);
-      setCategorias(categoriasUnicas);
+      setProdutos(listaProdutos);
+      setCategorias(listaCategorias);
+      setLoading(false);
     })();
   }, []);
 
@@ -74,6 +55,18 @@ export default function Home() {
       <Header />
 
       <main className="flex-1 px-4 pb-32 max-w-md mx-auto">
+        {loading && (
+          <p className="text-center text-zinc-400 mt-10">
+            Carregando produtos...
+          </p>
+        )}
+
+        {!loading && produtos.length === 0 && (
+          <p className="text-center text-red-400 mt-10">
+            Nenhum produto encontrado.
+          </p>
+        )}
+
         {categoriasOrdenadas.map((categoria) => (
           <CategorySection
             key={categoria}
