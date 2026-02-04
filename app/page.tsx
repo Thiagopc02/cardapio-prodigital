@@ -13,11 +13,14 @@ import {
   getCategorias,
 } from "@/firebase/produtos";
 
+/* ================= CONFIG ================= */
+
 const CATEGORIAS_LABELS: Record<string, string> = {
   lanches: "Lanches",
   bebidas: "Bebidas",
   combos: "Combos",
   sobremesas: "Sobremesas",
+  outros: "Outros",
 };
 
 const ORDEM_CATEGORIAS = [
@@ -25,7 +28,10 @@ const ORDEM_CATEGORIAS = [
   "bebidas",
   "combos",
   "sobremesas",
+  "outros",
 ];
+
+/* ================= PAGE ================= */
 
 export default function Home() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -33,18 +39,55 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const listaProdutos = await getProdutosAtivos();
-      const listaCategorias = await getCategorias();
+    async function carregarDados() {
+      try {
+        setLoading(true);
 
-      console.log("🔥 PRODUTOS:", listaProdutos);
-      console.log("🔥 CATEGORIAS:", listaCategorias);
+        const listaProdutos = await getProdutosAtivos();
+        const listaCategorias = await getCategorias();
 
-      setProdutos(listaProdutos);
-      setCategorias(listaCategorias);
-      setLoading(false);
-    })();
+        console.log("🔥 PRODUTOS:", listaProdutos);
+        console.log("🔥 CATEGORIAS:", listaCategorias);
+
+        setProdutos(listaProdutos);
+        setCategorias(listaCategorias);
+      } catch (error) {
+        console.error("❌ Erro ao carregar produtos:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    carregarDados();
   }, []);
+
+  /* ================= ESTADOS ================= */
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center text-zinc-400">
+          Carregando produtos...
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!loading && produtos.length === 0) {
+    return (
+      <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center text-red-400">
+          Nenhum produto encontrado.
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  /* ================= CATEGORIAS ================= */
 
   const categoriasOrdenadas = ORDEM_CATEGORIAS.filter((c) =>
     categorias.includes(c)
@@ -54,28 +97,22 @@ export default function Home() {
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
       <Header />
 
-      <main className="flex-1 px-4 pb-32 max-w-md mx-auto">
-        {loading && (
-          <p className="text-center text-zinc-400 mt-10">
-            Carregando produtos...
-          </p>
-        )}
+      <main className="flex-1 px-4 pb-32 max-w-md mx-auto w-full">
+        {categoriasOrdenadas.map((categoria) => {
+          const produtosDaCategoria = produtos.filter(
+            (p) => p.categoria === categoria
+          );
 
-        {!loading && produtos.length === 0 && (
-          <p className="text-center text-red-400 mt-10">
-            Nenhum produto encontrado.
-          </p>
-        )}
+          if (produtosDaCategoria.length === 0) return null;
 
-        {categoriasOrdenadas.map((categoria) => (
-          <CategorySection
-            key={categoria}
-            categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
-            produtos={produtos.filter(
-              (p) => p.categoria === categoria
-            )}
-          />
-        ))}
+          return (
+            <CategorySection
+              key={categoria}
+              categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
+              produtos={produtosDaCategoria}
+            />
+          );
+        })}
       </main>
 
       <FloatingCart />
