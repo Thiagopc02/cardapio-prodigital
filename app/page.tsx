@@ -12,10 +12,10 @@ import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 /* ================= CONFIG ================= */
 
 const CATEGORIAS_LABELS: Record<string, string> = {
-  lanches: "lanches",
-  bebidas: "bebidas",
-  combos: "combos",
-  sobremesas: "sobremesas",
+  lanches: "Lanches",
+  bebidas: "Bebidas",
+  combos: "Combos",
+  sobremesas: "Sobremesas",
 };
 
 const ORDEM_CATEGORIAS = [
@@ -33,33 +33,23 @@ export default function Home() {
 
   useEffect(() => {
     async function carregar() {
-      try {
-        const lista = await getProdutosAtivos();
+      const lista = await getProdutosAtivos();
 
-        console.log("🔥 PRODUTOS RAW:", lista);
+      // 🔥 NORMALIZA A CATEGORIA VINDO DO FIREBASE
+      const normalizados: Produto[] = lista.map((p) => ({
+        ...p,
+        categoria: p.categoria.trim().toLowerCase(),
+      }));
 
-        // 🔥 NORMALIZA CATEGORIA (AQUI ESTAVA O ERRO)
-        const normalizados: Produto[] = lista.map((p) => ({
-          ...p,
-          categoria: p.categoria.trim().toLowerCase(),
-        }));
+      console.log("🔥 PRODUTOS FIREBASE:", lista);
+      console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
 
-        console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
-
-        setProdutos(normalizados);
-      } catch (err) {
-        console.error("Erro ao carregar produtos:", err);
-      } finally {
-        setLoading(false);
-      }
+      setProdutos(normalizados);
+      setLoading(false);
     }
 
     carregar();
   }, []);
-
-  const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((cat) =>
-    produtos.some((p) => p.categoria === cat)
-  );
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
@@ -78,15 +68,21 @@ export default function Home() {
           </p>
         )}
 
-        {categoriasDisponiveis.map((categoria) => (
-          <CategorySection
-            key={categoria}
-            categoria={CATEGORIAS_LABELS[categoria]}
-            produtos={produtos.filter(
-              (p) => p.categoria === categoria
-            )}
-          />
-        ))}
+        {ORDEM_CATEGORIAS.map((categoria) => {
+          const produtosCategoria = produtos.filter(
+            (p) => p.categoria === categoria
+          );
+
+          if (produtosCategoria.length === 0) return null;
+
+          return (
+            <CategorySection
+              key={categoria}
+              categoria={CATEGORIAS_LABELS[categoria]}
+              produtos={produtosCategoria}
+            />
+          );
+        })}
       </main>
 
       <FloatingCart />
