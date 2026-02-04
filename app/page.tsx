@@ -9,8 +9,7 @@ import CartModal from "@/components/CartModal";
 
 import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 
-/* ===== CONFIG ===== */
-
+/* Labels amigáveis */
 const CATEGORIAS_LABELS: Record<string, string> = {
   lanches: "Lanches",
   bebidas: "Bebidas",
@@ -18,48 +17,36 @@ const CATEGORIAS_LABELS: Record<string, string> = {
   sobremesas: "Sobremesas",
 };
 
-const ORDEM_CATEGORIAS = [
-  "lanches",
-  "bebidas",
-  "combos",
-  "sobremesas",
-];
-
-/* ===== PAGE ===== */
-
 export default function Home() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function carregar() {
-      try {
-        const lista = await getProdutosAtivos();
+      const lista = await getProdutosAtivos();
 
-        console.log("🔥 PRODUTOS RAW:", lista);
+      console.log("🔥 PRODUTOS RAW:", lista);
 
-        // 🔥 NORMALIZA CATEGORIA
-        const normalizados: Produto[] = lista.map((p) => ({
-          ...p,
-          categoria: p.categoria.toLowerCase().trim(),
-        }));
+      /* Normaliza categorias vindas do Firestore */
+      const produtosNormalizados: Produto[] = lista.map((p) => ({
+        ...p,
+        categoria: p.categoria.trim().toLowerCase(),
+      }));
 
-        console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
+      console.log("🔥 PRODUTOS NORMALIZADOS:", produtosNormalizados);
 
-        setProdutos(normalizados);
-      } catch (err) {
-        console.error("Erro ao carregar produtos:", err);
-      } finally {
-        setLoading(false);
-      }
+      const categoriasUnicas = Array.from(
+        new Set(produtosNormalizados.map((p) => p.categoria))
+      );
+
+      setProdutos(produtosNormalizados);
+      setCategorias(categoriasUnicas);
+      setLoading(false);
     }
 
     carregar();
   }, []);
-
-  const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((categoria) =>
-    produtos.some((p) => p.categoria === categoria)
-  );
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
@@ -78,7 +65,7 @@ export default function Home() {
           </p>
         )}
 
-        {categoriasDisponiveis.map((categoria) => (
+        {categorias.map((categoria) => (
           <CategorySection
             key={categoria}
             categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
