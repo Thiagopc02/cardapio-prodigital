@@ -9,44 +9,57 @@ import CartModal from "@/components/CartModal";
 
 import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 
-/* Labels amigáveis */
+/* ================= CONFIG ================= */
+
 const CATEGORIAS_LABELS: Record<string, string> = {
-  lanches: "lanches",
-  bebidas: "bebidas",
-  combos: "combos",
-  sobremesas: "sobremesas",
+  lanches: "Lanches",
+  bebidas: "Bebidas",
+  combos: "Combos",
+  sobremesas: "Sobremesas",
 };
+
+const ORDEM_CATEGORIAS = [
+  "lanches",
+  "bebidas",
+  "combos",
+  "sobremesas",
+];
+
+/* ================= PAGE ================= */
 
 export default function Home() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [categorias, setCategorias] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function carregar() {
-      const lista = await getProdutosAtivos();
+      try {
+        const lista = await getProdutosAtivos();
 
-      console.log("🔥 PRODUTOS RAW:", lista);
+        console.log("🔥 PRODUTOS RAW:", lista);
 
-      /* Normaliza categorias vindas do Firestore */
-      const produtosNormalizados: Produto[] = lista.map((p) => ({
-        ...p,
-        categoria: p.categoria.trim().toLowerCase(),
-      }));
+        // 🔥 NORMALIZA CATEGORIA (AQUI ESTAVA O ERRO)
+        const normalizados: Produto[] = lista.map((p) => ({
+          ...p,
+          categoria: p.categoria.trim().toLowerCase(),
+        }));
 
-      console.log("🔥 PRODUTOS NORMALIZADOS:", produtosNormalizados);
+        console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
 
-      const categoriasUnicas = Array.from(
-        new Set(produtosNormalizados.map((p) => p.categoria))
-      );
-
-      setProdutos(produtosNormalizados);
-      setCategorias(categoriasUnicas);
-      setLoading(false);
+        setProdutos(normalizados);
+      } catch (err) {
+        console.error("Erro ao carregar produtos:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     carregar();
   }, []);
+
+  const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((cat) =>
+    produtos.some((p) => p.categoria === cat)
+  );
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
@@ -65,10 +78,10 @@ export default function Home() {
           </p>
         )}
 
-        {categorias.map((categoria) => (
+        {categoriasDisponiveis.map((categoria) => (
           <CategorySection
             key={categoria}
-            categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
+            categoria={CATEGORIAS_LABELS[categoria]}
             produtos={produtos.filter(
               (p) => p.categoria === categoria
             )}
