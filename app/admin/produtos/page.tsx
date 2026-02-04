@@ -16,6 +16,8 @@ export default function ProdutosAdmin() {
   const router = useRouter();
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [nome, setNome] = useState("");
   const [preco, setPreco] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -24,15 +26,29 @@ export default function ProdutosAdmin() {
 
   /* ================= AUTH ================= */
   useEffect(() => {
-    if (!isAdminLogged()) router.replace("/admin/login");
+    if (!isAdminLogged()) {
+      router.replace("/admin/login");
+    }
   }, [router]);
 
-  /* ================= LOAD ================= */
+  /* ================= LOAD (CORRETO) ================= */
   useEffect(() => {
+    let ativo = true;
+
     (async () => {
-      const lista = await getProdutos();
-      setProdutos(lista);
+      try {
+        const lista = await getProdutos();
+        if (ativo) {
+          setProdutos(lista);
+        }
+      } finally {
+        if (ativo) setLoading(false);
+      }
     })();
+
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   /* ================= IMAGE ================= */
@@ -49,7 +65,7 @@ export default function ProdutosAdmin() {
     await addProduto({
       nome,
       preco: Number(preco),
-      categoria,
+      categoria: categoria.toLowerCase().trim(),
       imagem: imagem || "/produtos/placeholder.png",
       ativo: true,
     });
@@ -67,18 +83,17 @@ export default function ProdutosAdmin() {
     if (!confirm("Excluir produto?")) return;
 
     await deleteProduto(id);
-    const lista = await getProdutos();
-    setProdutos(lista);
+    setProdutos((prev) => prev.filter((p) => p.id !== id));
   }
 
-  const filtrados = useMemo(
-    () =>
-      produtos.filter((p) =>
-        p.nome.toLowerCase().includes(filtro.toLowerCase())
-      ),
-    [produtos, filtro]
-  );
+  /* ================= FILTER ================= */
+  const filtrados = useMemo(() => {
+    return produtos.filter((p) =>
+      p.nome.toLowerCase().includes(filtro.toLowerCase())
+    );
+  }, [produtos, filtro]);
 
+  /* ================= UI ================= */
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Produtos</h1>
@@ -129,6 +144,16 @@ export default function ProdutosAdmin() {
         className="w-full p-2 mb-4 rounded bg-zinc-800"
       />
 
+      {loading && (
+        <p className="text-center text-zinc-400">Carregando...</p>
+      )}
+
+      {!loading && filtrados.length === 0 && (
+        <p className="text-center text-zinc-400">
+          Nenhum produto cadastrado
+        </p>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtrados.map((p) => (
           <div
@@ -148,12 +173,14 @@ export default function ProdutosAdmin() {
               <p className="text-green-400">
                 R$ {p.preco.toFixed(2)}
               </p>
-              <p className="text-xs text-zinc-400">{p.categoria}</p>
+              <p className="text-xs text-zinc-400">
+                {p.categoria}
+              </p>
             </div>
 
             <button
               onClick={() => remover(p.id)}
-              className="text-red-500"
+              className="text-red-500 text-xl"
             >
               🗑️
             </button>
