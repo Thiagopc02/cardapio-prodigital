@@ -10,17 +10,32 @@ import CartModal from "@/components/CartModal";
 import {
   Produto,
   getProdutosAtivos,
-  getCategorias,
-} from "@/firebase/produtos"; // ✅ CORRETO
+} from "@/firebase/produtos";
+
+/* ================= NORMALIZAÇÃO ================= */
+
+// transforma qualquer texto em categoria técnica
+function normalizarCategoria(valor: string) {
+  return valor
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .trim();
+}
+
+/* ================= LABELS ================= */
 
 const CATEGORIAS_LABELS: Record<string, string> = {
   lanches: "Lanches",
   bebidas: "Bebidas",
   combos: "Combos",
   sobremesas: "Sobremesas",
+  lancamentos: "Lançamentos",
 };
 
+/* ordem visual */
 const ORDEM_CATEGORIAS = [
+  "lancamentos",
   "lanches",
   "bebidas",
   "combos",
@@ -33,11 +48,20 @@ export default function Home() {
 
   useEffect(() => {
     (async () => {
-      const listaProdutos = await getProdutosAtivos();
-      const listaCategorias = await getCategorias();
+      const lista = await getProdutosAtivos();
 
-      setProdutos(listaProdutos);
-      setCategorias(listaCategorias);
+      // normaliza categorias
+      const produtosNormalizados = lista.map((p) => ({
+        ...p,
+        categoria: normalizarCategoria(p.categoria),
+      }));
+
+      const categoriasUnicas = Array.from(
+        new Set(produtosNormalizados.map((p) => p.categoria))
+      );
+
+      setProdutos(produtosNormalizados);
+      setCategorias(categoriasUnicas);
     })();
   }, []);
 
