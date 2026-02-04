@@ -15,7 +15,7 @@ export type Produto = {
   id: string;
   nome: string;
   preco: number;
-  categoria: string;
+  tipo: string;          // 🔥 ERA categoria → AGORA tipo
   imagem: string;
   ativo: boolean;
 };
@@ -40,8 +40,7 @@ export async function addProduto(produto: Omit<Produto, "id">) {
 }
 
 export async function deleteProduto(id: string) {
-  const ref = doc(db, "produtos", id);
-  await deleteDoc(ref);
+  await deleteDoc(doc(db, "produtos", id));
 }
 
 /* ================= SITE PÚBLICO ================= */
@@ -58,5 +57,13 @@ export async function getProdutosAtivos(): Promise<Produto[]> {
 
 export async function getCategorias(): Promise<string[]> {
   const produtos = await getProdutosAtivos();
-  return Array.from(new Set(produtos.map((p) => p.categoria)));
+
+  return Array.from(
+    new Set(
+      produtos
+        .map((p) => p.tipo)
+        .filter(Boolean)
+        .map((c) => c.toLowerCase())
+    )
+  );
 }
