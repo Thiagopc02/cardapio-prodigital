@@ -9,22 +9,7 @@ import CartModal from "@/components/CartModal";
 
 import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 
-/* ================= TIPOS ================= */
-
-type ProdutoNormalizado = Produto & {
-  categoriaNormalizada: string;
-};
-
-/* ================= UTIL ================= */
-
-function normalizarCategoria(valor: string) {
-  return valor
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-/* ================= CONFIG ================= */
+/* ===== CONFIG ===== */
 
 const CATEGORIAS_LABELS: Record<string, string> = {
   lanches: "Lanches",
@@ -40,31 +25,41 @@ const ORDEM_CATEGORIAS = [
   "sobremesas",
 ];
 
-/* ================= PAGE ================= */
+/* ===== PAGE ===== */
 
 export default function Home() {
-  const [produtos, setProdutos] = useState<ProdutoNormalizado[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function carregar() {
-      const lista = await getProdutosAtivos();
+      try {
+        const lista = await getProdutosAtivos();
 
-      console.log("🔥 PRODUTOS RAW:", lista);
+        console.log("🔥 PRODUTOS RAW:", lista);
 
-      const produtosNormalizados: ProdutoNormalizado[] = lista.map((p) => ({
-        ...p,
-        categoriaNormalizada: normalizarCategoria(p.categoria),
-      }));
+        // 🔥 NORMALIZA CATEGORIA
+        const normalizados: Produto[] = lista.map((p) => ({
+          ...p,
+          categoria: p.categoria.toLowerCase().trim(),
+        }));
 
-      console.log("🔥 PRODUTOS NORMALIZADOS:", produtosNormalizados);
+        console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
 
-      setProdutos(produtosNormalizados);
-      setLoading(false);
+        setProdutos(normalizados);
+      } catch (err) {
+        console.error("Erro ao carregar produtos:", err);
+      } finally {
+        setLoading(false);
+      }
     }
 
     carregar();
   }, []);
+
+  const categoriasDisponiveis = ORDEM_CATEGORIAS.filter((categoria) =>
+    produtos.some((p) => p.categoria === categoria)
+  );
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
@@ -83,22 +78,15 @@ export default function Home() {
           </p>
         )}
 
-        {!loading &&
-          ORDEM_CATEGORIAS.map((categoria) => {
-            const produtosDaCategoria = produtos.filter(
-              (p) => p.categoriaNormalizada === categoria
-            );
-
-            if (produtosDaCategoria.length === 0) return null;
-
-            return (
-              <CategorySection
-                key={categoria}
-                categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
-                produtos={produtosDaCategoria}
-              />
-            );
-          })}
+        {categoriasDisponiveis.map((categoria) => (
+          <CategorySection
+            key={categoria}
+            categoria={CATEGORIAS_LABELS[categoria] ?? categoria}
+            produtos={produtos.filter(
+              (p) => p.categoria === categoria
+            )}
+          />
+        ))}
       </main>
 
       <FloatingCart />
