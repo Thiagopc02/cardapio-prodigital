@@ -12,10 +12,10 @@ import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 /* ================= CONFIG ================= */
 
 const CATEGORIAS_LABELS: Record<string, string> = {
-  lanches: "Lanches",
-  bebidas: "Bebidas",
-  combos: "Combos",
-  sobremesas: "Sobremesas",
+  lanches: "lanches",
+  bebidas: "bebidas",
+  combos: "combos",
+  sobremesas: "sobremesas",
 };
 
 const ORDEM_CATEGORIAS = [
