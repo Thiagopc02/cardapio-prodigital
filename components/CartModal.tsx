@@ -47,10 +47,9 @@ export default function CartModal() {
     numero: "",
     bairro: "",
     complemento: "",
-    triggering: "",
     cidade: "",
     uf: "",
-  } as Endereco);
+  });
 
   /* ================= BUSCAR CEP ================= */
 
@@ -99,6 +98,11 @@ export default function CartModal() {
     try {
       setLoading(true);
 
+      /* === NORMALIZA TELEFONE (+55) === */
+      const telefoneFormatado = telefone.startsWith("55")
+        ? `+${telefone}`
+        : `+55${telefone}`;
+
       /* === Atualiza cliente local === */
       if (cliente?.cadastrado) {
         salvarCliente({
@@ -109,17 +113,20 @@ export default function CartModal() {
         });
       }
 
-      /* === Salva pedido no Firestore (Admin) === */
+      /* === SALVA PEDIDO NO FIRESTORE === */
       await addDoc(collection(db, "pedidos"), {
         cliente: {
           nome,
-          telefone,
+          telefone: telefoneFormatado,
         },
         endereco: {
           rua: endereco.rua,
           numero: endereco.numero,
           bairro: endereco.bairro,
           cep: endereco.cep,
+          complemento: endereco.complemento || "",
+          cidade: endereco.cidade,
+          uf: endereco.uf,
         },
         itens: carrinho.map((item) => ({
           id: item.id,
@@ -133,7 +140,7 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
-      /* === Mensagem WhatsApp === */
+      /* === MONTA MENSAGEM WHATSAPP === */
       const itensTexto = carrinho
         .map(
           (item) =>
@@ -154,7 +161,7 @@ export default function CartModal() {
 👉 ${nome}
 
 📞📱 *CONTATO*
-👉 ${telefone}
+👉 ${telefoneFormatado}
 
 📍🏠 *ENDEREÇO DE ENTREGA*
 👉 ${endereco.rua}, Nº ${endereco.numero}
@@ -196,7 +203,7 @@ ${itensTexto}
     }
   }
 
-  /* ================= PAGAMENTO ONLINE (FUTURO) ================= */
+  /* ================= PAGAMENTO ONLINE ================= */
 
   function pagarAgora() {
     alert("Pagamento online será integrado em breve 💳");

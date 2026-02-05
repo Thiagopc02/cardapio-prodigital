@@ -39,7 +39,7 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 🚫 Sem telefone → não cria listener e pronto
+    // 👉 SEM cliente ou telefone → não cria listener
     if (!cliente?.telefone) return;
 
     const q = query(
@@ -81,11 +81,17 @@ export default function StatusPage() {
         📦 Acompanhar pedidos
       </h1>
 
-      {loading && (
+      {!cliente?.telefone && (
+        <p className="text-zinc-400">
+          Nenhum cliente identificado neste dispositivo.
+        </p>
+      )}
+
+      {cliente?.telefone && loading && (
         <p className="text-zinc-400">Carregando pedidos...</p>
       )}
 
-      {!loading && pedidos.length === 0 && (
+      {cliente?.telefone && !loading && pedidos.length === 0 && (
         <p className="text-zinc-400">
           Nenhum pedido encontrado.
         </p>
