@@ -1,6 +1,7 @@
 export type ClienteLocal = {
   nome: string;
   telefone: string;
+  email: string; // ✅ ADICIONADO
   enderecos: string[];
   cadastrado: boolean;
   comprasComDesconto: number;
