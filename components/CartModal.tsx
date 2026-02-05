@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { obterCliente, salvarCliente } from "@/src/utils/clienteStorage";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/firebase/config";
 
 /* ================= TIPOS ================= */
 
@@ -45,9 +47,10 @@ export default function CartModal() {
     numero: "",
     bairro: "",
     complemento: "",
+    triggering: "",
     cidade: "",
     uf: "",
-  });
+  } as Endereco);
 
   /* ================= BUSCAR CEP ================= */
 
@@ -76,9 +79,9 @@ export default function CartModal() {
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= WHATSAPP ================= */
+  /* ================= WHATSAPP + FIRESTORE ================= */
 
-  function enviarPedidoWhatsApp() {
+  async function enviarPedidoWhatsApp() {
     if (loading) return;
 
     if (
@@ -93,30 +96,55 @@ export default function CartModal() {
       return;
     }
 
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    if (cliente?.cadastrado) {
-      salvarCliente({
-        ...cliente,
-        nome,
-        telefone,
-        comprasComDesconto: cliente.comprasComDesconto + 1,
+      /* === Atualiza cliente local === */
+      if (cliente?.cadastrado) {
+        salvarCliente({
+          ...cliente,
+          nome,
+          telefone,
+          comprasComDesconto: cliente.comprasComDesconto + 1,
+        });
+      }
+
+      /* === Salva pedido no Firestore (Admin) === */
+      await addDoc(collection(db, "pedidos"), {
+        cliente: {
+          nome,
+          telefone,
+        },
+        endereco: {
+          rua: endereco.rua,
+          numero: endereco.numero,
+          bairro: endereco.bairro,
+          cep: endereco.cep,
+        },
+        itens: carrinho.map((item) => ({
+          id: item.id,
+          nome: item.nome,
+          preco: item.preco,
+          quantidade: item.qtd,
+        })),
+        total: totalFinal,
+        pagamento: "entrega",
+        status: "novo",
+        createdAt: serverTimestamp(),
       });
-    }
 
-    const itensTexto = carrinho
-      .map(
-        (item) =>
-          `🍔 ${item.qtd}x ${item.nome}\n   💵 ${(
-            item.preco * item.qtd
-          ).toLocaleString("pt-BR", {
-            style: "currency",
-            currency: "BRL",
-          })}`
-      )
-      .join("\n\n");
+      /* === Mensagem WhatsApp === */
+      const itensTexto = carrinho
+        .map(
+          (item) =>
+            `🍔 ${item.qtd}x ${item.nome}\n   💵 ${(item.preco * item.qtd).toLocaleString(
+              "pt-BR",
+              { style: "currency", currency: "BRL" }
+            )}`
+        )
+        .join("\n\n");
 
-    const mensagem = `
+      const mensagem = `
 🟢🟢🟢🟢🟢🟢🟢🟢
 🍔✨ *NOVO PEDIDO* ✨🍔
 📲 *CARDÁPIO DIGITAL*
@@ -138,28 +166,34 @@ ${itensTexto}
 
 💰💳 *TOTAL*
 👉 ${totalFinal.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    })}
+        style: "currency",
+        currency: "BRL",
+      })}
 
 🚚💵 *PAGAMENTO*
 👉 Na entrega
 
 🙏🍀 Obrigado pela preferência!
 ⚡ Pedido enviado pelo Cardápio Digital
-    `.trim();
+      `.trim();
 
-    const telefoneWhatsApp = "62994524744";
+      const telefoneWhatsApp = "62994524744";
 
-    const url = `https://wa.me/55${telefoneWhatsApp}?text=${encodeURIComponent(
-      mensagem
-    )}`;
+      window.open(
+        `https://wa.me/55${telefoneWhatsApp}?text=${encodeURIComponent(
+          mensagem
+        )}`,
+        "_blank"
+      );
 
-    window.open(url, "_blank");
-
-    limparCarrinho();
-    setCartOpen(false);
-    setLoading(false);
+      limparCarrinho();
+      setCartOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao finalizar pedido");
+    } finally {
+      setLoading(false);
+    }
   }
 
   /* ================= PAGAMENTO ONLINE (FUTURO) ================= */

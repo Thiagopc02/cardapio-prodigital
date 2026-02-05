@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
 export default function AdminLayout({
@@ -10,6 +10,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
   /* ================= PROTEÇÃO ADMIN ================= */
@@ -20,30 +21,37 @@ export default function AdminLayout({
     }
   }, [router]);
 
+  function linkClass(path: string) {
+    const active = pathname === path;
+    return `
+      flex items-center gap-2
+      ${active ? "text-green-400 font-bold" : "hover:text-green-400"}
+      transition
+    `;
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex">
       {/* ================= MENU DESKTOP ================= */}
-      <aside className="hidden md:flex w-64 bg-zinc-900 p-6 flex-col">
+      <aside className="hidden md:flex w-64 bg-zinc-900 p-6 flex-col border-r border-zinc-800">
         <h2 className="text-xl font-bold mb-8">Admin</h2>
 
         <nav className="space-y-4">
-          <Link
-            href="/admin/dashboard"
-            className="hover:text-green-400 transition"
-          >
+          <Link href="/admin/dashboard" className={linkClass("/admin/dashboard")}>
             📊 Dashboard
           </Link>
 
-          <Link
-            href="/admin/produtos"
-            className="hover:text-green-400 transition"
-          >
+          <Link href="/admin/pedidos" className={linkClass("/admin/pedidos")}>
+            🧾 Pedidos
+          </Link>
+
+          <Link href="/admin/produtos" className={linkClass("/admin/produtos")}>
             🍔 Produtos
           </Link>
 
           <Link
             href="/admin/categorias"
-            className="hover:text-green-400 transition"
+            className={linkClass("/admin/categorias")}
           >
             🗂️ Categorias
           </Link>
@@ -53,7 +61,7 @@ export default function AdminLayout({
       {/* ================= CONTEÚDO ================= */}
       <div className="flex-1 flex flex-col">
         {/* ===== HEADER MOBILE ===== */}
-        <header className="md:hidden flex items-center justify-between bg-zinc-900 p-4">
+        <header className="md:hidden flex items-center justify-between bg-zinc-900 p-4 border-b border-zinc-800">
           <button
             onClick={() => setMenuOpen(true)}
             className="text-2xl"
@@ -84,15 +92,23 @@ export default function AdminLayout({
                 <Link
                   href="/admin/dashboard"
                   onClick={() => setMenuOpen(false)}
-                  className="block hover:text-green-400"
+                  className={linkClass("/admin/dashboard")}
                 >
                   📊 Dashboard
                 </Link>
 
                 <Link
+                  href="/admin/pedidos"
+                  onClick={() => setMenuOpen(false)}
+                  className={linkClass("/admin/pedidos")}
+                >
+                  🧾 Pedidos
+                </Link>
+
+                <Link
                   href="/admin/produtos"
                   onClick={() => setMenuOpen(false)}
-                  className="block hover:text-green-400"
+                  className={linkClass("/admin/produtos")}
                 >
                   🍔 Produtos
                 </Link>
@@ -100,7 +116,7 @@ export default function AdminLayout({
                 <Link
                   href="/admin/categorias"
                   onClick={() => setMenuOpen(false)}
-                  className="block hover:text-green-400"
+                  className={linkClass("/admin/categorias")}
                 >
                   🗂️ Categorias
                 </Link>
@@ -110,7 +126,9 @@ export default function AdminLayout({
         )}
 
         {/* ===== MAIN ===== */}
-        <main className="flex-1 p-4 sm:p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

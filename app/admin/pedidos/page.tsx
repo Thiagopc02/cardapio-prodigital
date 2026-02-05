@@ -7,6 +7,8 @@ import {
   doc,
   getDocs,
   updateDoc,
+  orderBy,
+  query,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { Pedido } from "@/src/types/Pedidos";
@@ -15,37 +17,35 @@ export default function AdminPedidosPage() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* =========================
-     CARREGAR PEDIDOS
-  ========================= */
   async function carregarPedidos() {
     try {
       setLoading(true);
 
-      const snap = await getDocs(collection(db, "pedidos"));
+      const q = query(
+        collection(db, "pedidos"),
+        orderBy("createdAt", "desc")
+      );
+
+      const snap = await getDocs(q);
 
       const lista: Pedido[] = snap.docs.map((d) => ({
-        id: d.id, // 🔥 garantido
+        id: d.id,
         ...(d.data() as Omit<Pedido, "id">),
       }));
 
       setPedidos(lista);
-    } catch (error) {
-      console.error("Erro ao carregar pedidos:", error);
+    } catch (err) {
+      console.error("Erro ao carregar pedidos", err);
     } finally {
       setLoading(false);
     }
   }
 
-  /* =========================
-     ALTERAR STATUS
-  ========================= */
   async function alterarStatus(
     pedidoId: string,
     status: Pedido["status"]
   ) {
     await updateDoc(doc(db, "pedidos", pedidoId), { status });
-
     setPedidos((prev) =>
       prev.map((p) =>
         p.id === pedidoId ? { ...p, status } : p
@@ -53,12 +53,8 @@ export default function AdminPedidosPage() {
     );
   }
 
-  /* =========================
-     EXCLUIR PEDIDO
-  ========================= */
   async function excluirPedido(pedidoId: string) {
-    if (!confirm("Deseja realmente excluir este pedido?")) return;
-
+    if (!confirm("Excluir este pedido?")) return;
     await deleteDoc(doc(db, "pedidos", pedidoId));
     setPedidos((prev) => prev.filter((p) => p.id !== pedidoId));
   }
@@ -67,16 +63,11 @@ export default function AdminPedidosPage() {
     carregarPedidos();
   }, []);
 
-  /* =========================
-     UI
-  ========================= */
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-4">
-      <h1 className="text-xl font-bold mb-4">Pedidos</h1>
+    <div>
+      <h1 className="text-xl font-bold mb-4">🧾 Pedidos</h1>
 
-      {loading && (
-        <p className="text-zinc-400">Carregando pedidos...</p>
-      )}
+      {loading && <p className="text-zinc-400">Carregando...</p>}
 
       {!loading && pedidos.length === 0 && (
         <p className="text-zinc-400">Nenhum pedido encontrado.</p>
@@ -88,29 +79,21 @@ export default function AdminPedidosPage() {
             key={pedido.id}
             className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
           >
-            {/* CABEÇALHO */}
             <div className="flex justify-between font-semibold">
               <span>{pedido.cliente.nome}</span>
               <span>R$ {pedido.total.toFixed(2)}</span>
             </div>
 
-            {/* CLIENTE */}
-            <div className="text-sm text-zinc-400 mt-1">
+            <p className="text-sm text-zinc-400 mt-1">
               📞 {pedido.cliente.telefone}
-              <br />
-              ✉️ {pedido.cliente.email}
-            </div>
+            </p>
 
-            {/* ENDEREÇO */}
-            <div className="text-sm text-zinc-400 mt-2">
+            <p className="text-sm text-zinc-400 mt-1">
               📍 {pedido.endereco.rua}, {pedido.endereco.numero} –{" "}
               {pedido.endereco.bairro}
-              {pedido.endereco.complemento &&
-                ` (${pedido.endereco.complemento})`}
-            </div>
+            </p>
 
-            {/* ITENS */}
-            <div className="mt-3 space-y-1 text-sm">
+            <div className="mt-3 text-sm space-y-1">
               {pedido.itens.map((item) => (
                 <div key={item.id} className="flex justify-between">
                   <span>
@@ -123,22 +106,20 @@ export default function AdminPedidosPage() {
               ))}
             </div>
 
-            {/* STATUS */}
-            <div className="text-xs text-zinc-400 mt-2">
+            <div className="mt-2 text-xs">
               Status:{" "}
               <span className="text-green-400 capitalize">
                 {pedido.status}
               </span>
             </div>
 
-            {/* AÇÕES */}
             <div className="flex gap-2 mt-3 flex-wrap">
               {pedido.status === "novo" && (
                 <button
                   onClick={() =>
                     alterarStatus(pedido.id, "preparando")
                   }
-                  className="bg-blue-500 text-black px-3 py-1 rounded text-xs font-bold"
+                  className="bg-blue-500 px-3 py-1 rounded text-black text-xs font-bold"
                 >
                   Preparar
                 </button>
@@ -149,7 +130,7 @@ export default function AdminPedidosPage() {
                   onClick={() =>
                     alterarStatus(pedido.id, "finalizado")
                   }
-                  className="bg-green-500 text-black px-3 py-1 rounded text-xs font-bold"
+                  className="bg-green-500 px-3 py-1 rounded text-black text-xs font-bold"
                 >
                   Finalizar
                 </button>
@@ -157,7 +138,7 @@ export default function AdminPedidosPage() {
 
               <button
                 onClick={() => excluirPedido(pedido.id)}
-                className="ml-auto text-red-400 text-xs font-semibold"
+                className="ml-auto text-red-400 text-xs"
               >
                 Excluir
               </button>
