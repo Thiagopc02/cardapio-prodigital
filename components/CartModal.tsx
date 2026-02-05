@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { obterCliente, salvarCliente } from "@/src/utils/clienteStorage";
-import { criarPedido } from "@/src/firebase/pedidos";
 
 /* ================= TIPOS ================= */
 
@@ -32,7 +31,6 @@ export default function CartModal() {
 
   const [nome, setNome] = useState(cliente?.nome ?? "");
   const [telefone, setTelefone] = useState(cliente?.telefone ?? "");
-  const [email, setEmail] = useState("cliente@local.app");
 
   const [endereco, setEndereco] = useState<Endereco>({
     cep: "",
@@ -71,75 +69,71 @@ export default function CartModal() {
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= FINALIZAR PEDIDO ================= */
+  /* ================= WHATSAPP ================= */
 
-  async function finalizarPedido(
-    pagamento: "agora" | "entrega"
-  ) {
+  function enviarPedidoWhatsApp() {
     if (
       !nome ||
       !telefone ||
       !endereco.cep ||
       !endereco.rua ||
       !endereco.numero ||
-      !endereco.bairro ||
-      !endereco.cidade ||
-      !endereco.uf
+      !endereco.bairro
     ) {
       alert("Preencha todos os dados corretamente.");
       return;
     }
 
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      const pedidoId = await criarPedido({
-        cliente: {
-          nome,
-          telefone,
-          email,
-        },
-        endereco,
-        itens: carrinho.map((item) => ({
-          id: item.id,
-          nome: item.nome,
-          preco: item.preco,
-          quantidade: item.qtd,
-        })),
-        total: totalFinal,
-        pagamento,
+    // Atualiza cliente local (para desconto)
+    if (cliente?.cadastrado) {
+      salvarCliente({
+        ...cliente,
+        nome,
+        telefone,
+        comprasComDesconto: cliente.comprasComDesconto + 1,
       });
-
-      if (cliente?.cadastrado) {
-        salvarCliente({
-          ...cliente,
-          comprasComDesconto: cliente.comprasComDesconto + 1,
-        });
-      }
-
-      let mensagem = "🧾 *Pedido*:%0A";
-      carrinho.forEach((item) => {
-        mensagem += `• ${item.nome} (${item.qtd}x) - R$ ${(item.preco * item.qtd).toFixed(2)}%0A`;
-      });
-
-      mensagem += `%0A💰 *Total:* R$ ${totalFinal.toFixed(2)}`;
-      mensagem += `%0A👤 *Nome:* ${nome}`;
-      mensagem += `%0A📞 *Telefone:* ${telefone}`;
-      mensagem += `%0A📍 *Endereço:* ${endereco.rua}, ${endereco.numero} - ${endereco.bairro}`;
-      mensagem += `%0A🆔 *Pedido:* ${pedidoId}`;
-
-      window.open(
-        `https://wa.me/5599999999999?text=${mensagem}`,
-        "_blank"
-      );
-
-      setCartOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao finalizar pedido");
-    } finally {
-      setLoading(false);
     }
+
+    const itensTexto = carrinho
+      .map(
+        (item) =>
+          `• ${item.qtd}x ${item.nome} – R$ ${(
+            item.preco * item.qtd
+          ).toFixed(2)}`
+      )
+      .join("\n");
+
+    const mensagem = `
+🛒 *NOVO PEDIDO*
+
+👤 *Nome:* ${nome}
+📞 *Telefone:* ${telefone}
+
+📍 *Endereço:*
+Rua ${endereco.rua}, Nº ${endereco.numero}
+Bairro ${endereco.bairro}
+CEP ${endereco.cep}
+
+🍔 *Itens:*
+${itensTexto}
+
+💰 *Total:* R$ ${totalFinal.toFixed(2)}
+
+🚚 *Pagamento:* Na entrega
+    `.trim();
+
+    const telefoneWhatsApp = "62994524744";
+
+    const url = `https://wa.me/55${telefoneWhatsApp}?text=${encodeURIComponent(
+      mensagem
+    )}`;
+
+    window.open(url, "_blank");
+
+    setCartOpen(false);
+    setLoading(false);
   }
 
   function irParaLogin() {
@@ -165,7 +159,7 @@ export default function CartModal() {
             className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
           >
             <Image
-              src={item.imagem}
+              src={item.imagem || "/produtos/placeholder.png"}
               alt={item.nome}
               width={60}
               height={60}
@@ -186,27 +180,78 @@ export default function CartModal() {
         </div>
 
         <div className="mt-4 space-y-2">
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
+          <input
+            className="w-full p-2 rounded bg-zinc-800"
+            placeholder="Nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+
+          <input
+            className="w-full p-2 rounded bg-zinc-800"
+            placeholder="Telefone"
+            value={telefone}
+            onChange={(e) =>
+              setTelefone(e.target.value.replace(/\D/g, ""))
+            }
+          />
+
+          <input
+            className="w-full p-2 rounded bg-zinc-800"
+            placeholder="CEP"
+            value={endereco.cep}
+            onChange={(e) =>
+              setEndereco({
+                ...endereco,
+                cep: e.target.value.replace(/\D/g, ""),
+              })
+            }
+          />
+
+          <input
+            className="w-full p-2 rounded bg-zinc-800"
+            placeholder="Rua"
+            value={endereco.rua}
+            onChange={(e) =>
+              setEndereco({ ...endereco, rua: e.target.value })
+            }
+          />
+
           <div className="flex gap-2">
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
+            <input
+              className="w-1/2 p-2 rounded bg-zinc-800"
+              placeholder="Número"
+              value={endereco.numero}
+              onChange={(e) =>
+                setEndereco({ ...endereco, numero: e.target.value })
+              }
+            />
+
+            <input
+              className="w-1/2 p-2 rounded bg-zinc-800"
+              placeholder="Bairro"
+              value={endereco.bairro}
+              onChange={(e) =>
+                setEndereco({ ...endereco, bairro: e.target.value })
+              }
+            />
           </div>
         </div>
 
         {!cliente?.cadastrado && (
-          <button onClick={irParaLogin} className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl">
+          <button
+            onClick={irParaLogin}
+            className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl"
+          >
             Cadastrar e ganhar 5% OFF 🎁
           </button>
         )}
 
-        <button disabled={loading} onClick={() => finalizarPedido("agora")} className="w-full mt-3 bg-zinc-700 py-2 rounded-xl">
-          💳 Pagar agora
-        </button>
-
-        <button disabled={loading} onClick={() => finalizarPedido("entrega")} className="w-full mt-2 bg-green-500 text-black py-3 rounded-xl font-bold">
+        <button
+          disabled={loading}
+          onClick={enviarPedidoWhatsApp}
+          className="w-full mt-3 bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+        >
           🚚 Pagar na entrega
         </button>
       </div>
