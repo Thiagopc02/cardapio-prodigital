@@ -7,7 +7,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { db } from "./config";
+import { db } from "./configs";
 
 /* ================= TIPOS ================= */
 
