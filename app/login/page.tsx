@@ -20,10 +20,12 @@ const onlyNumbers = (v: string) =>
 const maskPhone = (v: string) => {
   v = onlyNumbers(v).slice(0, 11);
   if (v.length <= 10)
-    return v.replace(/(\d{2})(\d)/, "($1) $2")
-            .replace(/(\d{4})(\d)/, "$1-$2");
-  return v.replace(/(\d{2})(\d)/, "($1) $2")
-          .replace(/(\d{5})(\d)/, "$1-$2");
+    return v
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  return v
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
 };
 
 const maskCep = (v: string) =>
@@ -60,12 +62,17 @@ export default function LoginPage() {
   }
 
   /* =====================
-     LOGIN GOOGLE REAL
+     LOGIN COM GOOGLE
   ===================== */
   async function loginComGoogle() {
     try {
       setLoading(true);
+
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
+
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
@@ -77,8 +84,8 @@ export default function LoginPage() {
       });
 
       router.push("/");
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert("Erro ao entrar com Google");
     } finally {
       setLoading(false);
@@ -105,7 +112,7 @@ export default function LoginPage() {
         email: form.email,
         telefone: form.celular,
         sexo: form.sexo,
-        idade: Number(form.idade),
+        idade: form.idade ? Number(form.idade) : undefined,
         endereco: {
           cep: form.cep,
           rua: form.rua,
@@ -120,8 +127,8 @@ export default function LoginPage() {
 
       localStorage.setItem("cliente_uid", uid);
       router.push("/");
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert("Erro ao salvar cadastro");
     } finally {
       setLoading(false);
@@ -140,10 +147,10 @@ export default function LoginPage() {
         <button
           onClick={loginComGoogle}
           disabled={loading}
-          className="w-full bg-white text-black font-bold py-2 rounded-lg flex items-center justify-center gap-2"
+          className="w-full bg-white text-black font-bold py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70"
         >
           <Image
-            src="/google.png"
+            src="/google.svg"
             alt="Google"
             width={20}
             height={20}
@@ -163,7 +170,7 @@ export default function LoginPage() {
 
         <input
           value={form.email}
-          onChange={(e) => setField("email", e.target.value)}
+          onChange={(e) => setField("email", e.target.value.trim())}
           placeholder="Email"
           className="w-full p-2 rounded bg-zinc-800"
         />
@@ -189,7 +196,9 @@ export default function LoginPage() {
 
           <input
             value={form.idade}
-            onChange={(e) => setField("idade", onlyNumbers(e.target.value))}
+            onChange={(e) =>
+              setField("idade", onlyNumbers(e.target.value).slice(0, 3))
+            }
             placeholder="Idade"
             className="w-full p-2 rounded bg-zinc-800"
           />
@@ -251,7 +260,7 @@ export default function LoginPage() {
         <button
           onClick={salvarCliente}
           disabled={loading}
-          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2"
+          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2 disabled:opacity-70"
         >
           {loading ? "Salvando..." : "Continuar"}
         </button>
