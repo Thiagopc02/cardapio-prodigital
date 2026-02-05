@@ -17,6 +17,7 @@ type CartContextType = {
   total: number;
   cartOpen: boolean;
   setCartOpen: (v: boolean) => void;
+  limparCarrinho: () => void;
 };
 
 /* ================= CONTEXT ================= */
@@ -57,6 +58,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return carrinho.find((p) => p.id === id)?.qtd || 0;
   }
 
+  function limparCarrinho() {
+    setCarrinho([]);
+  }
+
   const total = carrinho.reduce(
     (soma, item) => soma + item.preco * item.qtd,
     0
@@ -72,6 +77,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         total,
         cartOpen,
         setCartOpen,
+        limparCarrinho,
       }}
     >
       {children}

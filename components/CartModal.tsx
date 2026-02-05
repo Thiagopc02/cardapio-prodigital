@@ -21,7 +21,14 @@ type Endereco = {
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const { carrinho, total, cartOpen, setCartOpen } = useCart();
+  const {
+    carrinho,
+    total,
+    cartOpen,
+    setCartOpen,
+    limparCarrinho, // 👈 IMPORTANTE
+  } = useCart();
+
   const router = useRouter();
 
   const cliente =
@@ -86,7 +93,7 @@ export default function CartModal() {
 
     setLoading(true);
 
-    // Atualiza cliente local (para desconto)
+    // Atualiza cliente local (controle de desconto)
     if (cliente?.cadastrado) {
       salvarCliente({
         ...cliente,
@@ -99,29 +106,30 @@ export default function CartModal() {
     const itensTexto = carrinho
       .map(
         (item) =>
-          `• ${item.qtd}x ${item.nome} – R$ ${(
+          `▫️ ${item.qtd}x ${item.nome}\n   💲 R$ ${(
             item.preco * item.qtd
           ).toFixed(2)}`
       )
       .join("\n");
 
     const mensagem = `
-🛒 *NOVO PEDIDO*
+🍔 *NOVO PEDIDO – CARDÁPIO DIGITAL*
 
-👤 *Nome:* ${nome}
+👤 *Cliente:* ${nome}
 📞 *Telefone:* ${telefone}
 
-📍 *Endereço:*
-Rua ${endereco.rua}, Nº ${endereco.numero}
+📍 *Endereço de entrega*
+${endereco.rua}, Nº ${endereco.numero}
 Bairro ${endereco.bairro}
 CEP ${endereco.cep}
 
-🍔 *Itens:*
+🛒 *Itens do pedido*
 ${itensTexto}
 
 💰 *Total:* R$ ${totalFinal.toFixed(2)}
-
 🚚 *Pagamento:* Na entrega
+
+⏰ Pedido enviado pelo cardápio digital
     `.trim();
 
     const telefoneWhatsApp = "62994524744";
@@ -132,8 +140,20 @@ ${itensTexto}
 
     window.open(url, "_blank");
 
+    // ✅ LIMPA TUDO APÓS PEDIDO
+    limparCarrinho();
     setCartOpen(false);
     setLoading(false);
+  }
+
+  /* ================= MERCADO PAGO ================= */
+
+  function pagarAgora() {
+    // Aqui você pode:
+    // - redirecionar para checkout Mercado Pago
+    // - ou criar preferência no backend
+
+    alert("Pagamento online em breve 🚀");
   }
 
   function irParaLogin() {
@@ -247,10 +267,20 @@ ${itensTexto}
           </button>
         )}
 
+        {/* 💳 PAGAMENTO ONLINE */}
+        <button
+          disabled={loading}
+          onClick={pagarAgora}
+          className="w-full mt-3 bg-zinc-700 py-2 rounded-xl"
+        >
+          💳 Pagar agora
+        </button>
+
+        {/* 🚚 PAGAMENTO NA ENTREGA */}
         <button
           disabled={loading}
           onClick={enviarPedidoWhatsApp}
-          className="w-full mt-3 bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+          className="w-full mt-2 bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2"
         >
           🚚 Pagar na entrega
         </button>
