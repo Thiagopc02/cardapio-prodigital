@@ -1,7 +1,7 @@
 import "./globals.css";
-import Header from "@/components/Header";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import Header from "@/components/Header";
 
 export const metadata = {
   title: "Cardápio Pro Digital",

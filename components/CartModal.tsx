@@ -18,7 +18,6 @@ type Endereco = {
   uf: string;
 };
 
-/* ================= COMPONENTE ================= */
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen } = useCart();
   const router = useRouter();
@@ -30,7 +29,7 @@ export default function CartModal() {
 
   const [nome, setNome] = useState(cliente?.nome ?? "");
   const [telefone, setTelefone] = useState(cliente?.telefone ?? "");
-  const [email, setEmail] = useState(cliente?.email ?? "cliente@local.app");
+  const [email, setEmail] = useState("cliente@local.app");
 
   const [endereco, setEndereco] = useState<Endereco>({
     cep: "",
@@ -73,7 +72,6 @@ export default function CartModal() {
     if (
       !nome ||
       !telefone ||
-      !email ||
       !endereco.cep ||
       !endereco.rua ||
       !endereco.numero ||
@@ -89,10 +87,8 @@ export default function CartModal() {
       setLoading(true);
 
       const pedidoId = await criarPedido({
-        status: "novo",
-        total: totalFinal,
-        pagamento: tipoPagamento,
         cliente: {
+          uid: cliente?.telefone ?? "cliente-local",
           nome,
           telefone,
           email,
@@ -102,8 +98,10 @@ export default function CartModal() {
           id: item.id,
           nome: item.nome,
           preco: item.preco,
-          quantidade: item.qtd, // ✅ AJUSTE CRÍTICO
+          quantidade: item.qtd,
         })),
+        total: totalFinal,
+        pagamento: tipoPagamento,
       });
 
       if (cliente?.cadastrado) {
@@ -130,7 +128,7 @@ export default function CartModal() {
       );
 
       setCartOpen(false);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
       alert("Erro ao finalizar pedido");
     } finally {
@@ -182,10 +180,10 @@ export default function CartModal() {
 
         <div className="mt-4 space-y-2">
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
+
           <div className="flex gap-2">
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
