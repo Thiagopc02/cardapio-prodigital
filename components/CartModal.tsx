@@ -8,6 +8,7 @@ import { obterCliente, salvarCliente } from "@/src/utils/clienteStorage";
 import { criarPedido } from "@/src/firebase/pedidos";
 
 /* ================= TIPOS ================= */
+
 type Endereco = {
   cep: string;
   rua: string;
@@ -17,6 +18,8 @@ type Endereco = {
   cidade: string;
   uf: string;
 };
+
+/* ================= COMPONENTE ================= */
 
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen } = useCart();
@@ -42,6 +45,7 @@ export default function CartModal() {
   });
 
   /* ================= BUSCAR CEP ================= */
+
   useEffect(() => {
     if (endereco.cep.length !== 8) return;
 
@@ -68,7 +72,10 @@ export default function CartModal() {
   const totalFinal = temDesconto ? total * 0.95 : total;
 
   /* ================= FINALIZAR PEDIDO ================= */
-  async function finalizarPedido(tipoPagamento: "agora" | "entrega") {
+
+  async function finalizarPedido(
+    pagamento: "agora" | "entrega"
+  ) {
     if (
       !nome ||
       !telefone ||
@@ -88,7 +95,6 @@ export default function CartModal() {
 
       const pedidoId = await criarPedido({
         cliente: {
-          uid: cliente?.telefone ?? "cliente-local",
           nome,
           telefone,
           email,
@@ -101,7 +107,7 @@ export default function CartModal() {
           quantidade: item.qtd,
         })),
         total: totalFinal,
-        pagamento: tipoPagamento,
+        pagamento,
       });
 
       if (cliente?.cadastrado) {
@@ -128,7 +134,7 @@ export default function CartModal() {
       );
 
       setCartOpen(false);
-    } catch (err: unknown) {
+    } catch (err) {
       console.error(err);
       alert("Erro ao finalizar pedido");
     } finally {
@@ -142,6 +148,7 @@ export default function CartModal() {
   }
 
   /* ================= UI ================= */
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -183,7 +190,6 @@ export default function CartModal() {
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
-
           <div className="flex gap-2">
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />

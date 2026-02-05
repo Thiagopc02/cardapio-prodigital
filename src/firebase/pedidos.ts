@@ -1,16 +1,18 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./config";
 
-type PedidoItem = {
+/* ================= TIPOS ================= */
+
+export type PedidoItem = {
   id: string;
   nome: string;
   preco: number;
   quantidade: number;
 };
 
-type PedidoInput = {
+export type PedidoInput = {
   cliente: {
-    uid: string;
+    uid?: string; // ✅ opcional
     nome: string;
     email: string;
     telefone: string;
@@ -26,12 +28,18 @@ type PedidoInput = {
   };
   itens: PedidoItem[];
   total: number;
+  pagamento: "agora" | "entrega";
+  status?: "novo" | "preparando" | "finalizado";
 };
 
+/* ================= CRIAR PEDIDO ================= */
+
 export async function criarPedido(pedido: PedidoInput) {
-  await addDoc(collection(db, "pedidos"), {
+  const docRef = await addDoc(collection(db, "pedidos"), {
     ...pedido,
-    status: "novo",
+    status: pedido.status ?? "novo",
     criadoEm: serverTimestamp(),
   });
+
+  return docRef.id;
 }
