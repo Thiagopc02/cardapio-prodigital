@@ -1,6 +1,7 @@
 import "./globals.css";
-import { AuthProvider } from "@/context/AuthContext";
 import Header from "@/components/Header";
+import { AuthProvider } from "@/context/AuthContext";
+import { CartProvider } from "@/context/CartContext";
 
 export const metadata = {
   title: "Cardápio Pro Digital",
@@ -16,8 +17,10 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="bg-zinc-950 text-white">
         <AuthProvider>
-          <Header />
-          {children}
+          <CartProvider>
+            <Header />
+            {children}
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>
