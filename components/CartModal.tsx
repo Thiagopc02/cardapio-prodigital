@@ -26,7 +26,7 @@ export default function CartModal() {
     total,
     cartOpen,
     setCartOpen,
-    limparCarrinho, // 👈 IMPORTANTE
+    limparCarrinho,
   } = useCart();
 
   const router = useRouter();
@@ -79,6 +79,8 @@ export default function CartModal() {
   /* ================= WHATSAPP ================= */
 
   function enviarPedidoWhatsApp() {
+    if (loading) return;
+
     if (
       !nome ||
       !telefone ||
@@ -93,7 +95,6 @@ export default function CartModal() {
 
     setLoading(true);
 
-    // Atualiza cliente local (controle de desconto)
     if (cliente?.cadastrado) {
       salvarCliente({
         ...cliente,
@@ -106,30 +107,46 @@ export default function CartModal() {
     const itensTexto = carrinho
       .map(
         (item) =>
-          `▫️ ${item.qtd}x ${item.nome}\n   💲 R$ ${(
+          `🍔 ${item.qtd}x ${item.nome}\n   💵 ${(
             item.preco * item.qtd
-          ).toFixed(2)}`
+          ).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}`
       )
-      .join("\n");
+      .join("\n\n");
 
     const mensagem = `
-🍔 *NOVO PEDIDO – CARDÁPIO DIGITAL*
+🟢🟢🟢🟢🟢🟢🟢🟢
+🍔✨ *NOVO PEDIDO* ✨🍔
+📲 *CARDÁPIO DIGITAL*
+🟢🟢🟢🟢🟢🟢🟢🟢
 
-👤 *Cliente:* ${nome}
-📞 *Telefone:* ${telefone}
+👤🙋 *CLIENTE*
+👉 ${nome}
 
-📍 *Endereço de entrega*
-${endereco.rua}, Nº ${endereco.numero}
-Bairro ${endereco.bairro}
-CEP ${endereco.cep}
+📞📱 *CONTATO*
+👉 ${telefone}
 
-🛒 *Itens do pedido*
+📍🏠 *ENDEREÇO DE ENTREGA*
+👉 ${endereco.rua}, Nº ${endereco.numero}
+👉 Bairro ${endereco.bairro}
+👉 CEP ${endereco.cep}
+
+🧾🛒 *ITENS DO PEDIDO*
 ${itensTexto}
 
-💰 *Total:* R$ ${totalFinal.toFixed(2)}
-🚚 *Pagamento:* Na entrega
+💰💳 *TOTAL*
+👉 ${totalFinal.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    })}
 
-⏰ Pedido enviado pelo cardápio digital
+🚚💵 *PAGAMENTO*
+👉 Na entrega
+
+🙏🍀 Obrigado pela preferência!
+⚡ Pedido enviado pelo Cardápio Digital
     `.trim();
 
     const telefoneWhatsApp = "62994524744";
@@ -140,20 +157,15 @@ ${itensTexto}
 
     window.open(url, "_blank");
 
-    // ✅ LIMPA TUDO APÓS PEDIDO
     limparCarrinho();
     setCartOpen(false);
     setLoading(false);
   }
 
-  /* ================= MERCADO PAGO ================= */
+  /* ================= PAGAMENTO ONLINE (FUTURO) ================= */
 
   function pagarAgora() {
-    // Aqui você pode:
-    // - redirecionar para checkout Mercado Pago
-    // - ou criar preferência no backend
-
-    alert("Pagamento online em breve 🚀");
+    alert("Pagamento online será integrado em breve 💳");
   }
 
   function irParaLogin() {
@@ -188,7 +200,11 @@ ${itensTexto}
             <div>
               <p className="font-semibold">{item.nome}</p>
               <p className="text-sm text-zinc-400">
-                {item.qtd}x • R$ {(item.preco * item.qtd).toFixed(2)}
+                {item.qtd}x •{" "}
+                {(item.preco * item.qtd).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                })}
               </p>
             </div>
           </div>
@@ -196,91 +212,39 @@ ${itensTexto}
 
         <div className="mt-3 flex justify-between font-bold">
           <span>Total</span>
-          <span>R$ {totalFinal.toFixed(2)}</span>
+          <span>
+            {totalFinal.toLocaleString("pt-BR", {
+              style: "currency",
+              currency: "BRL",
+            })}
+          </span>
         </div>
 
         <div className="mt-4 space-y-2">
-          <input
-            className="w-full p-2 rounded bg-zinc-800"
-            placeholder="Nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-          />
-
-          <input
-            className="w-full p-2 rounded bg-zinc-800"
-            placeholder="Telefone"
-            value={telefone}
-            onChange={(e) =>
-              setTelefone(e.target.value.replace(/\D/g, ""))
-            }
-          />
-
-          <input
-            className="w-full p-2 rounded bg-zinc-800"
-            placeholder="CEP"
-            value={endereco.cep}
-            onChange={(e) =>
-              setEndereco({
-                ...endereco,
-                cep: e.target.value.replace(/\D/g, ""),
-              })
-            }
-          />
-
-          <input
-            className="w-full p-2 rounded bg-zinc-800"
-            placeholder="Rua"
-            value={endereco.rua}
-            onChange={(e) =>
-              setEndereco({ ...endereco, rua: e.target.value })
-            }
-          />
-
+          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
+          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
+          <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
+          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
           <div className="flex gap-2">
-            <input
-              className="w-1/2 p-2 rounded bg-zinc-800"
-              placeholder="Número"
-              value={endereco.numero}
-              onChange={(e) =>
-                setEndereco({ ...endereco, numero: e.target.value })
-              }
-            />
-
-            <input
-              className="w-1/2 p-2 rounded bg-zinc-800"
-              placeholder="Bairro"
-              value={endereco.bairro}
-              onChange={(e) =>
-                setEndereco({ ...endereco, bairro: e.target.value })
-              }
-            />
+            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
+            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
           </div>
         </div>
 
         {!cliente?.cadastrado && (
-          <button
-            onClick={irParaLogin}
-            className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl"
-          >
-            Cadastrar e ganhar 5% OFF 🎁
+          <button onClick={irParaLogin} className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl">
+            🎁 Cadastrar e ganhar 5% OFF
           </button>
         )}
 
-        {/* 💳 PAGAMENTO ONLINE */}
-        <button
-          disabled={loading}
-          onClick={pagarAgora}
-          className="w-full mt-3 bg-zinc-700 py-2 rounded-xl"
-        >
+        <button onClick={pagarAgora} className="w-full mt-3 bg-zinc-700 py-2 rounded-xl">
           💳 Pagar agora
         </button>
 
-        {/* 🚚 PAGAMENTO NA ENTREGA */}
         <button
           disabled={loading}
           onClick={enviarPedidoWhatsApp}
-          className="w-full mt-2 bg-green-500 text-black py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+          className="w-full mt-2 bg-green-500 text-black py-3 rounded-xl font-bold"
         >
           🚚 Pagar na entrega
         </button>
