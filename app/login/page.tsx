@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { salvarUsuario } from "@/firebase/users";
 
 /* =====================
    FUNÇÕES DE MÁSCARA
@@ -16,10 +17,13 @@ const onlyNumbers = (v: string) =>
 const maskPhone = (v: string) => {
   v = onlyNumbers(v).slice(0, 11);
   if (v.length <= 10)
-    return v.replace(/(\d{2})(\d)/, "($1) $2")
-            .replace(/(\d{4})(\d)/, "$1-$2");
-  return v.replace(/(\d{2})(\d)/, "($1) $2")
-          .replace(/(\d{5})(\d)/, "$1-$2");
+    return v
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+
+  return v
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
 };
 
 const maskCep = (v: string) =>
@@ -34,6 +38,7 @@ const maskUF = (v: string) =>
 
 export default function LoginPage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
     nome: "",
@@ -54,28 +59,88 @@ export default function LoginPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function salvarCliente() {
+  /* =====================
+     SALVAR USUÁRIO
+  ===================== */
+  async function salvarCliente() {
     if (!form.nome || !form.email || !form.celular) {
-      alert("Preencha os campos obrigatórios");
+      alert("Preencha nome, email e celular");
       return;
     }
 
-    localStorage.setItem(
-      "cliente_fake",
-      JSON.stringify(form)
-    );
+    try {
+      setLoading(true);
 
-    router.push("/");
+      const uid = crypto.randomUUID(); // simples e funcional
+
+      await salvarUsuario({
+        uid,
+        nome: form.nome,
+        email: form.email,
+        telefone: form.celular,
+        sexo: form.sexo,
+        idade: Number(form.idade || 0),
+        endereco: {
+          cep: form.cep,
+          rua: form.rua,
+          numero: form.numero,
+          bairro: form.bairro,
+          cidade: form.cidade,
+          uf: form.estado,
+          complemento: form.complemento,
+        },
+        createdAt: new Date(),
+      });
+
+      // salva local para sessão
+      localStorage.setItem(
+        "cliente_logado",
+        JSON.stringify({ uid, nome: form.nome, email: form.email })
+      );
+
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar usuário");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function loginGoogleFake() {
+  /* =====================
+     GOOGLE (FAKE POR ENQUANTO)
+  ===================== */
+  async function loginGoogleFake() {
+    const uid = crypto.randomUUID();
+
+    await salvarUsuario({
+      uid,
+      nome: "Cliente Google",
+      email: "google@email.com",
+      telefone: "",
+      sexo: "",
+      idade: 0,
+      endereco: {
+        cep: "",
+        rua: "",
+        numero: "",
+        bairro: "",
+        cidade: "",
+        uf: "",
+        complemento: "",
+      },
+      createdAt: new Date(),
+    });
+
     localStorage.setItem(
-      "cliente_fake",
+      "cliente_logado",
       JSON.stringify({
+        uid,
         nome: "Cliente Google",
         email: "google@email.com",
       })
     );
+
     router.push("/");
   }
 
@@ -97,7 +162,6 @@ export default function LoginPage() {
 
         <div className="text-center text-zinc-400 text-sm">ou</div>
 
-        {/* NOME */}
         <input
           value={form.nome}
           onChange={(e) => setField("nome", onlyLetters(e.target.value))}
@@ -105,7 +169,6 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* EMAIL */}
         <input
           value={form.email}
           onChange={(e) =>
@@ -115,7 +178,6 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* CELULAR */}
         <input
           value={form.celular}
           onChange={(e) => setField("celular", maskPhone(e.target.value))}
@@ -123,7 +185,6 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* SEXO + IDADE */}
         <div className="flex gap-2">
           <select
             value={form.sexo}
@@ -148,7 +209,6 @@ export default function LoginPage() {
 
         <h2 className="font-semibold text-sm mt-2">Endereço</h2>
 
-        {/* CEP */}
         <input
           value={form.cep}
           onChange={(e) => setField("cep", maskCep(e.target.value))}
@@ -156,7 +216,6 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* RUA */}
         <input
           value={form.rua}
           onChange={(e) => setField("rua", e.target.value)}
@@ -164,13 +223,10 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* NUMERO + BAIRRO */}
         <div className="flex gap-2">
           <input
             value={form.numero}
-            onChange={(e) =>
-              setField("numero", onlyNumbers(e.target.value))
-            }
+            onChange={(e) => setField("numero", onlyNumbers(e.target.value))}
             placeholder="Número"
             className="w-full p-2 rounded bg-zinc-800"
           />
@@ -182,7 +238,6 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* CIDADE + UF */}
         <div className="flex gap-2">
           <input
             value={form.cidade}
@@ -198,7 +253,6 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* COMPLEMENTO */}
         <input
           value={form.complemento}
           onChange={(e) => setField("complemento", e.target.value)}
@@ -206,12 +260,12 @@ export default function LoginPage() {
           className="w-full p-2 rounded bg-zinc-800"
         />
 
-        {/* BOTÃO */}
         <button
           onClick={salvarCliente}
-          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2"
+          disabled={loading}
+          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2 disabled:opacity-60"
         >
-          Continuar
+          {loading ? "Salvando..." : "Continuar"}
         </button>
       </div>
     </div>
