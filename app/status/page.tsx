@@ -39,17 +39,19 @@ export default function StatusPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 👉 SEM cliente ou telefone → não cria listener
+    // 👉 NÃO faz nada se não houver telefone
     if (!cliente?.telefone) return;
+
+    const telefoneNormalizado = cliente.telefone.replace(/\D/g, "");
 
     const q = query(
       collection(db, "pedidos"),
-      where("cliente.telefone", "==", cliente.telefone),
+      where("cliente.telefone", "==", telefoneNormalizado),
       orderBy("createdAt", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lista: Pedido[] = snapshot.docs.map((doc) => ({
+      const lista = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<Pedido, "id">),
       }));
@@ -60,6 +62,8 @@ export default function StatusPage() {
 
     return () => unsubscribe();
   }, [cliente?.telefone]);
+
+  /* ================= HELPERS ================= */
 
   function statusColor(status: Pedido["status"]) {
     if (status === "novo") return "text-yellow-400";
@@ -75,23 +79,27 @@ export default function StatusPage() {
 
   /* ================= UI ================= */
 
-  return (
-    <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4 flex items-center gap-2">
-        📦 Acompanhar pedidos
-      </h1>
-
-      {!cliente?.telefone && (
+  // 🔴 CLIENTE NÃO IDENTIFICADO
+  if (!cliente?.telefone) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
+        <h1 className="text-xl font-bold mb-2">📦 Acompanhar pedidos</h1>
         <p className="text-zinc-400">
           Nenhum cliente identificado neste dispositivo.
         </p>
-      )}
+      </div>
+    );
+  }
 
-      {cliente?.telefone && loading && (
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
+      <h1 className="text-xl font-bold mb-4">📦 Acompanhar pedidos</h1>
+
+      {loading && (
         <p className="text-zinc-400">Carregando pedidos...</p>
       )}
 
-      {cliente?.telefone && !loading && pedidos.length === 0 && (
+      {!loading && pedidos.length === 0 && (
         <p className="text-zinc-400">
           Nenhum pedido encontrado.
         </p>
@@ -103,7 +111,6 @@ export default function StatusPage() {
             key={pedido.id}
             className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"
           >
-            {/* STATUS */}
             <div className="flex justify-between items-center font-bold mb-2">
               <span
                 className={`flex items-center gap-1 ${statusColor(
@@ -118,7 +125,6 @@ export default function StatusPage() {
               </span>
             </div>
 
-            {/* ITENS */}
             <div className="text-sm space-y-1">
               {pedido.itens.map((item) => (
                 <div
@@ -135,7 +141,6 @@ export default function StatusPage() {
               ))}
             </div>
 
-            {/* PAGAMENTO */}
             <div className="text-xs text-zinc-400 mt-2">
               💳 Pagamento: {pedido.pagamento}
             </div>
