@@ -65,9 +65,18 @@ export default function Home() {
             {user ? (
               <div className="text-green-400 text-sm font-semibold">
                 👋 Olá, <b>{user.displayName || user.email}</b>
+
                 <div className="text-xs text-green-300">
                   boas compras 😎
                 </div>
+
+                {/* 🔴 STATUS DO PEDIDO */}
+                <button
+                  onClick={() => router.push("/status")}
+                  className="mt-1 text-xs text-red-400 font-bold hover:underline"
+                >
+                  🔴 Acompanhar pedido
+                </button>
               </div>
             ) : (
               <div className="text-green-400 text-sm font-semibold">
