@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Image from "next/image";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "@/firebase/config";
 import { salvarUsuario } from "@/firebase/users";
 
 /* =====================
@@ -17,13 +20,10 @@ const onlyNumbers = (v: string) =>
 const maskPhone = (v: string) => {
   v = onlyNumbers(v).slice(0, 11);
   if (v.length <= 10)
-    return v
-      .replace(/(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{4})(\d)/, "$1-$2");
-
-  return v
-    .replace(/(\d{2})(\d)/, "($1) $2")
-    .replace(/(\d{5})(\d)/, "$1-$2");
+    return v.replace(/(\d{2})(\d)/, "($1) $2")
+            .replace(/(\d{4})(\d)/, "$1-$2");
+  return v.replace(/(\d{2})(\d)/, "($1) $2")
+          .replace(/(\d{5})(\d)/, "$1-$2");
 };
 
 const maskCep = (v: string) =>
@@ -60,7 +60,33 @@ export default function LoginPage() {
   }
 
   /* =====================
-     SALVAR USUÁRIO
+     LOGIN GOOGLE REAL
+  ===================== */
+  async function loginComGoogle() {
+    try {
+      setLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      await salvarUsuario({
+        uid: user.uid,
+        nome: user.displayName || "Usuário Google",
+        email: user.email || "",
+        createdAt: new Date(),
+      });
+
+      router.push("/");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao entrar com Google");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /* =====================
+     CADASTRO MANUAL
   ===================== */
   async function salvarCliente() {
     if (!form.nome || !form.email || !form.celular) {
@@ -71,7 +97,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const uid = crypto.randomUUID(); // simples e funcional
+      const uid = crypto.randomUUID();
 
       await salvarUsuario({
         uid,
@@ -79,7 +105,7 @@ export default function LoginPage() {
         email: form.email,
         telefone: form.celular,
         sexo: form.sexo,
-        idade: Number(form.idade || 0),
+        idade: Number(form.idade),
         endereco: {
           cep: form.cep,
           rua: form.rua,
@@ -92,56 +118,14 @@ export default function LoginPage() {
         createdAt: new Date(),
       });
 
-      // salva local para sessão
-      localStorage.setItem(
-        "cliente_logado",
-        JSON.stringify({ uid, nome: form.nome, email: form.email })
-      );
-
+      localStorage.setItem("cliente_uid", uid);
       router.push("/");
     } catch (err) {
       console.error(err);
-      alert("Erro ao salvar usuário");
+      alert("Erro ao salvar cadastro");
     } finally {
       setLoading(false);
     }
-  }
-
-  /* =====================
-     GOOGLE (FAKE POR ENQUANTO)
-  ===================== */
-  async function loginGoogleFake() {
-    const uid = crypto.randomUUID();
-
-    await salvarUsuario({
-      uid,
-      nome: "Cliente Google",
-      email: "google@email.com",
-      telefone: "",
-      sexo: "",
-      idade: 0,
-      endereco: {
-        cep: "",
-        rua: "",
-        numero: "",
-        bairro: "",
-        cidade: "",
-        uf: "",
-        complemento: "",
-      },
-      createdAt: new Date(),
-    });
-
-    localStorage.setItem(
-      "cliente_logado",
-      JSON.stringify({
-        uid,
-        nome: "Cliente Google",
-        email: "google@email.com",
-      })
-    );
-
-    router.push("/");
   }
 
   return (
@@ -154,14 +138,22 @@ export default function LoginPage() {
 
         {/* GOOGLE */}
         <button
-          onClick={loginGoogleFake}
-          className="w-full bg-white text-black font-bold py-2 rounded-lg"
+          onClick={loginComGoogle}
+          disabled={loading}
+          className="w-full bg-white text-black font-bold py-2 rounded-lg flex items-center justify-center gap-2"
         >
+          <Image
+            src="/google.svg"
+            alt="Google"
+            width={20}
+            height={20}
+          />
           Entrar com Google
         </button>
 
         <div className="text-center text-zinc-400 text-sm">ou</div>
 
+        {/* FORMULÁRIO */}
         <input
           value={form.nome}
           onChange={(e) => setField("nome", onlyLetters(e.target.value))}
@@ -171,9 +163,7 @@ export default function LoginPage() {
 
         <input
           value={form.email}
-          onChange={(e) =>
-            setField("email", e.target.value.toLowerCase().trim())
-          }
+          onChange={(e) => setField("email", e.target.value)}
           placeholder="Email"
           className="w-full p-2 rounded bg-zinc-800"
         />
@@ -199,9 +189,7 @@ export default function LoginPage() {
 
           <input
             value={form.idade}
-            onChange={(e) =>
-              setField("idade", onlyNumbers(e.target.value).slice(0, 3))
-            }
+            onChange={(e) => setField("idade", onlyNumbers(e.target.value))}
             placeholder="Idade"
             className="w-full p-2 rounded bg-zinc-800"
           />
@@ -263,7 +251,7 @@ export default function LoginPage() {
         <button
           onClick={salvarCliente}
           disabled={loading}
-          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2 disabled:opacity-60"
+          className="w-full bg-green-500 text-black font-bold py-3 rounded-lg mt-2"
         >
           {loading ? "Salvando..." : "Continuar"}
         </button>
