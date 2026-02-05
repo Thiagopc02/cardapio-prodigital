@@ -37,22 +37,24 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function carregar() {
-      const lista = await getProdutosAtivos();
+    async function carregarProdutos() {
+      try {
+        const lista = await getProdutosAtivos();
 
-      const normalizados: Produto[] = lista.map((p) => ({
-        ...p,
-        categoria: p.categoria.trim().toLowerCase(),
-      }));
+        const normalizados: Produto[] = lista.map((p) => ({
+          ...p,
+          categoria: p.categoria.trim().toLowerCase(),
+        }));
 
-      console.log("🔥 PRODUTOS FIREBASE:", lista);
-      console.log("🔥 PRODUTOS NORMALIZADOS:", normalizados);
-
-      setProdutos(normalizados);
-      setLoading(false);
+        setProdutos(normalizados);
+      } catch (error) {
+        console.error("Erro ao carregar produtos:", error);
+      } finally {
+        setLoading(false);
+      }
     }
 
-    carregar();
+    carregarProdutos();
   }, []);
 
   return (
@@ -64,7 +66,8 @@ export default function Home() {
           <div className="bg-zinc-950 border border-green-500/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
             {user ? (
               <div className="text-green-400 text-sm font-semibold">
-                👋 Olá, <b>{user.displayName || user.email}</b>
+                👋 Olá,{" "}
+                <b>{user.displayName || user.email}</b>
 
                 <div className="text-xs text-green-300">
                   boas compras 😎
@@ -73,9 +76,9 @@ export default function Home() {
                 {/* 🔴 STATUS DO PEDIDO */}
                 <button
                   onClick={() => router.push("/status")}
-                  className="mt-1 text-xs text-red-400 font-bold hover:underline"
+                  className="mt-1 text-xs text-red-400 font-bold flex items-center gap-1 hover:underline"
                 >
-                  🔴 Acompanhar pedido
+                  🔴 Acompanhar pedidos
                 </button>
               </div>
             ) : (
@@ -112,23 +115,25 @@ export default function Home() {
           </p>
         )}
 
-        {ORDEM_CATEGORIAS.map((categoria) => {
-          const produtosCategoria = produtos.filter(
-            (p) => p.categoria === categoria
-          );
+        {!loading &&
+          ORDEM_CATEGORIAS.map((categoria) => {
+            const produtosCategoria = produtos.filter(
+              (p) => p.categoria === categoria
+            );
 
-          if (produtosCategoria.length === 0) return null;
+            if (produtosCategoria.length === 0) return null;
 
-          return (
-            <CategorySection
-              key={categoria}
-              categoria={CATEGORIAS_LABELS[categoria]}
-              produtos={produtosCategoria}
-            />
-          );
-        })}
+            return (
+              <CategorySection
+                key={categoria}
+                categoria={CATEGORIAS_LABELS[categoria]}
+                produtos={produtosCategoria}
+              />
+            );
+          })}
       </main>
 
+      {/* ================= FIXOS ================= */}
       <FloatingCart />
       <CartModal />
       <Footer />

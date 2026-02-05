@@ -19,14 +19,36 @@ type Pedido = {
   status: "novo" | "preparando" | "finalizado";
   total: number;
   pagamento: string;
+  createdAt?: Timestamp;
   itens: {
     id: string;
     nome: string;
     quantidade: number;
     preco: number;
   }[];
-  createdAt: Timestamp;
 };
+
+/* ================= STATUS CONFIG ================= */
+
+function statusInfo(status: Pedido["status"]) {
+  switch (status) {
+    case "novo":
+      return {
+        cor: "border-yellow-400 text-yellow-400",
+        label: "🕒 Pedido recebido",
+      };
+    case "preparando":
+      return {
+        cor: "border-blue-400 text-blue-400",
+        label: "👨‍🍳 Em preparo",
+      };
+    case "finalizado":
+      return {
+        cor: "border-green-400 text-green-400",
+        label: "✅ Finalizado",
+      };
+  }
+}
 
 /* ================= PAGE ================= */
 
@@ -57,8 +79,8 @@ export default function StatusPage() {
         }));
 
         setPedidos(lista);
-      } catch (error) {
-        console.error("Erro ao carregar pedidos:", error);
+      } catch (err) {
+        console.error("Erro ao carregar pedidos:", err);
       } finally {
         setLoading(false);
       }
@@ -70,9 +92,9 @@ export default function StatusPage() {
   /* ================= UI ================= */
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white px-4 py-6 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4 text-red-400">
-        📦 Status do seu pedido
+    <div className="min-h-screen bg-zinc-900 text-white p-4 max-w-md mx-auto">
+      <h1 className="text-xl font-bold mb-4">
+        📦 Acompanhar pedidos
       </h1>
 
       {loading && (
@@ -86,60 +108,46 @@ export default function StatusPage() {
       )}
 
       <div className="space-y-4">
-        {pedidos.map((pedido) => (
-          <div
-            key={pedido.id}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"
-          >
-            {/* STATUS */}
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-zinc-400">
-                Pedido #{pedido.id.slice(0, 6)}
-              </span>
+        {pedidos.map((pedido) => {
+          const status = statusInfo(pedido.status);
 
-              <span
-                className={`text-sm font-bold capitalize ${
-                  pedido.status === "novo"
-                    ? "text-yellow-400"
-                    : pedido.status === "preparando"
-                    ? "text-blue-400"
-                    : "text-green-400"
-                }`}
-              >
-                {pedido.status}
-              </span>
-            </div>
+          return (
+            <div
+              key={pedido.id}
+              className={`bg-zinc-950 border-l-4 ${status.cor} rounded-xl p-4`}
+            >
+              <div className={`font-bold mb-2 ${status.cor}`}>
+                {status.label}
+              </div>
 
-            {/* ITENS */}
-            <div className="text-sm space-y-1">
-              {pedido.itens.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex justify-between"
-                >
-                  <span>
-                    {item.quantidade}x {item.nome}
-                  </span>
-                  <span>
-                    R${" "}
-                    {(item.preco * item.quantidade).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
+              <div className="text-sm space-y-1">
+                {pedido.itens.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex justify-between"
+                  >
+                    <span>
+                      {item.quantidade}x {item.nome}
+                    </span>
+                    <span>
+                      R${" "}
+                      {(item.preco * item.quantidade).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
 
-            {/* TOTAL */}
-            <div className="mt-3 flex justify-between font-semibold">
-              <span>Total</span>
-              <span>R$ {pedido.total.toFixed(2)}</span>
-            </div>
+              <div className="mt-2 flex justify-between font-semibold">
+                <span>Total</span>
+                <span>R$ {pedido.total.toFixed(2)}</span>
+              </div>
 
-            {/* PAGAMENTO */}
-            <div className="text-xs text-zinc-400 mt-1">
-              Pagamento: {pedido.pagamento}
+              <div className="text-xs text-zinc-400 mt-1">
+                Pagamento: {pedido.pagamento}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
