@@ -150,7 +150,7 @@ export default function LoginPage() {
           className="w-full bg-white text-black font-bold py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-70"
         >
           <Image
-            src="/google.svg"
+            src="/google.png"
             alt="Google"
             width={20}
             height={20}
