@@ -1,4 +1,4 @@
-import "./globals.css";
+import "../globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
@@ -8,7 +8,7 @@ export const metadata = {
   description: "Peça pelo WhatsApp sem erro",
 };
 
-export default function RootLayout({
+export default function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -18,7 +18,6 @@ export default function RootLayout({
       <body className="bg-zinc-950 text-white">
         <AuthProvider>
           <CartProvider>
-            {/* Header SOMENTE para área pública */}
             <Header />
             {children}
           </CartProvider>

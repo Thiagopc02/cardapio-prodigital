@@ -1,8 +1,11 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { isAdminLogged } from "@/src/utils/adminAuth";
 
 export default function AdminLayout({
   children,
@@ -11,15 +14,34 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+
   const [menuOpen, setMenuOpen] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   // 🔐 Proteção admin
   useEffect(() => {
-    const admin = localStorage.getItem("admin_auth");
-    if (!admin) {
-      router.replace("/admin/login");
+    // permite acessar login sem redirecionar
+    if (pathname === "/admin/login") {
+      setChecked(true);
+      return;
     }
-  }, [router]);
+
+    if (!isAdminLogged()) {
+      router.replace("/admin/login");
+      return;
+    }
+
+    setChecked(true);
+  }, [router, pathname]);
+
+  // evita flicker
+  if (!checked) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
+        <span className="text-zinc-400 text-sm">Verificando acesso…</span>
+      </div>
+    );
+  }
 
   function linkClass(path: string) {
     const active = pathname === path;
@@ -46,7 +68,10 @@ export default function AdminLayout({
           <Link href="/admin/produtos" className={linkClass("/admin/produtos")}>
             🍔 Produtos
           </Link>
-          <Link href="/admin/categorias" className={linkClass("/admin/categorias")}>
+          <Link
+            href="/admin/categorias"
+            className={linkClass("/admin/categorias")}
+          >
             🗂️ Categorias
           </Link>
         </nav>
