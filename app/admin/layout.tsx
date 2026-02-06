@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 export default function AdminLayout({
@@ -9,17 +9,8 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  /* ================= PROTEÇÃO ADMIN ================= */
-  useEffect(() => {
-    const admin = localStorage.getItem("admin_auth");
-    if (!admin) {
-      router.replace("/admin/login");
-    }
-  }, [router]);
 
   function linkClass(path: string) {
     const active = pathname === path;
@@ -32,7 +23,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex">
-      {/* ================= MENU DESKTOP ================= */}
+      {/* ===== MENU DESKTOP ===== */}
       <aside className="hidden md:flex w-64 bg-zinc-900 p-6 flex-col border-r border-zinc-800">
         <h2 className="text-xl font-bold mb-8">Admin</h2>
 
@@ -58,30 +49,24 @@ export default function AdminLayout({
         </nav>
       </aside>
 
-      {/* ================= CONTEÚDO ================= */}
+      {/* ===== CONTEÚDO ===== */}
       <div className="flex-1 flex flex-col">
-        {/* ===== HEADER MOBILE ===== */}
+        {/* HEADER MOBILE */}
         <header className="md:hidden flex items-center justify-between bg-zinc-900 p-4 border-b border-zinc-800">
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="text-2xl"
-          >
+          <button onClick={() => setMenuOpen(true)} className="text-2xl">
             ☰
           </button>
-
           <span className="font-bold">Admin</span>
         </header>
 
-        {/* ===== MENU MOBILE ===== */}
+        {/* MENU MOBILE */}
         {menuOpen && (
           <div className="fixed inset-0 z-50 flex">
-            {/* overlay */}
             <div
               className="flex-1 bg-black/70"
               onClick={() => setMenuOpen(false)}
             />
 
-            {/* menu */}
             <aside className="w-64 bg-zinc-900 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">Admin</h2>
@@ -125,7 +110,7 @@ export default function AdminLayout({
           </div>
         )}
 
-        {/* ===== MAIN ===== */}
+        {/* MAIN */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {children}
         </main>
