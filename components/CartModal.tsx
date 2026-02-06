@@ -1,294 +1,123 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCart } from "@/context/CartContext";
-import { obterCliente, salvarCliente } from "@/src/utils/clienteStorage";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { useEffect, useRef, useState } from "react";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { obterCliente } from "@/src/utils/clienteStorage";
 
 /* ================= TIPOS ================= */
 
-type Endereco = {
-  cep: string;
-  rua: string;
-  numero: string;
-  bairro: string;
-  complemento?: string;
-  cidade: string;
-  uf: string;
+type StatusPedido =
+  | "novo"
+  | "preparando"
+  | "em rota"
+  | "finalizado";
+
+type ItemPedido = {
+  id: string;
+  nome: string;
+  quantidade: number;
+  preco: number;
 };
 
-/* ================= COMPONENTE ================= */
+type Pedido = {
+  id: string;
+  status: StatusPedido;
+  total: number;
+  pagamento: string;
+  itens: ItemPedido[];
+  createdAt?: Timestamp;
+};
 
-export default function CartModal() {
-  const {
-    carrinho,
-    total,
-    cartOpen,
-    setCartOpen,
-    limparCarrinho,
-  } = useCart();
+export default function StatusPage() {
+  const cliente = obterCliente();
 
-  const router = useRouter();
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const cliente =
-    typeof window !== "undefined" ? obterCliente() : null;
-
-  const [loading, setLoading] = useState(false);
-
-  const [nome, setNome] = useState(cliente?.nome ?? "");
-  const [telefone, setTelefone] = useState(cliente?.telefone ?? "");
-
-  const [endereco, setEndereco] = useState<Endereco>({
-    cep: "",
-    rua: "",
-    numero: "",
-    bairro: "",
-    complemento: "",
-    cidade: "",
-    uf: "",
-  });
-
-  /* ================= BUSCAR CEP ================= */
+  const statusAnterior = useRef<Record<string, StatusPedido>>({});
+  const [notificado, setNotificado] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
-    if (endereco.cep.length !== 8) return;
+    if (!cliente?.telefone) return;
 
-    fetch(`https://viacep.com.br/ws/${endereco.cep}/json/`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.erro) {
-          setEndereco((prev) => ({
-            ...prev,
-            rua: data.logradouro || "",
-            bairro: data.bairro || "",
-            cidade: data.localidade || "",
-            uf: data.uf || "",
-          }));
+    const q = query(
+      collection(db, "pedidos"),
+      where("cliente.telefone", "==", cliente.telefone),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const lista: Pedido[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Pedido, "id">),
+      }));
+
+      lista.forEach((p) => {
+        if (
+          statusAnterior.current[p.id] &&
+          statusAnterior.current[p.id] !== p.status
+        ) {
+          setNotificado(p.id);
+          setTimeout(() => setNotificado(null), 4000);
         }
-      });
-  }, [endereco.cep]);
-
-  if (!cartOpen) return null;
-
-  const temDesconto =
-    cliente?.cadastrado && cliente.comprasComDesconto < 2;
-
-  const totalFinal = temDesconto ? total * 0.95 : total;
-
-  /* ================= WHATSAPP + FIRESTORE ================= */
-
-  async function enviarPedidoWhatsApp() {
-    if (loading) return;
-
-    if (
-      !nome ||
-      !telefone ||
-      !endereco.cep ||
-      !endereco.rua ||
-      !endereco.numero ||
-      !endereco.bairro
-    ) {
-      alert("Preencha todos os dados corretamente.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      /* === NORMALIZA TELEFONE (+55) === */
-      const telefoneFormatado = telefone.startsWith("55")
-        ? `+${telefone}`
-        : `+55${telefone}`;
-
-      /* === Atualiza cliente local === */
-      if (cliente?.cadastrado) {
-        salvarCliente({
-          ...cliente,
-          nome,
-          telefone,
-          comprasComDesconto: cliente.comprasComDesconto + 1,
-        });
-      }
-
-      /* === SALVA PEDIDO NO FIRESTORE === */
-      await addDoc(collection(db, "pedidos"), {
-        cliente: {
-          nome,
-          telefone: telefoneFormatado,
-        },
-        endereco: {
-          rua: endereco.rua,
-          numero: endereco.numero,
-          bairro: endereco.bairro,
-          cep: endereco.cep,
-          complemento: endereco.complemento || "",
-          cidade: endereco.cidade,
-          uf: endereco.uf,
-        },
-        itens: carrinho.map((item) => ({
-          id: item.id,
-          nome: item.nome,
-          preco: item.preco,
-          quantidade: item.qtd,
-        })),
-        total: totalFinal,
-        pagamento: "entrega",
-        status: "novo",
-        createdAt: serverTimestamp(),
+        statusAnterior.current[p.id] = p.status;
       });
 
-      /* === MONTA MENSAGEM WHATSAPP === */
-      const itensTexto = carrinho
-        .map(
-          (item) =>
-            `🍔 ${item.qtd}x ${item.nome}\n   💵 ${(item.preco * item.qtd).toLocaleString(
-              "pt-BR",
-              { style: "currency", currency: "BRL" }
-            )}`
-        )
-        .join("\n\n");
-
-      const mensagem = `
-🟢🟢🟢🟢🟢🟢🟢🟢
-🍔✨ *NOVO PEDIDO* ✨🍔
-📲 *CARDÁPIO DIGITAL*
-🟢🟢🟢🟢🟢🟢🟢🟢
-
-👤🙋 *CLIENTE*
-👉 ${nome}
-
-📞📱 *CONTATO*
-👉 ${telefoneFormatado}
-
-📍🏠 *ENDEREÇO DE ENTREGA*
-👉 ${endereco.rua}, Nº ${endereco.numero}
-👉 Bairro ${endereco.bairro}
-👉 CEP ${endereco.cep}
-
-🧾🛒 *ITENS DO PEDIDO*
-${itensTexto}
-
-💰💳 *TOTAL*
-👉 ${totalFinal.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })}
-
-🚚💵 *PAGAMENTO*
-👉 Na entrega
-
-🙏🍀 Obrigado pela preferência!
-⚡ Pedido enviado pelo Cardápio Digital
-      `.trim();
-
-      const telefoneWhatsApp = "62994524744";
-
-      window.open(
-        `https://wa.me/55${telefoneWhatsApp}?text=${encodeURIComponent(
-          mensagem
-        )}`,
-        "_blank"
-      );
-
-      limparCarrinho();
-      setCartOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao finalizar pedido");
-    } finally {
+      setPedidos(lista);
       setLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
+  }, [cliente?.telefone]);
+
+  if (!cliente?.telefone) {
+    return (
+      <div className="min-h-screen bg-zinc-950 text-white p-4">
+        Nenhum cliente identificado.
+      </div>
+    );
   }
-
-  /* ================= PAGAMENTO ONLINE ================= */
-
-  function pagarAgora() {
-    alert("Pagamento online será integrado em breve 💳");
-  }
-
-  function irParaLogin() {
-    setCartOpen(false);
-    router.push("/login");
-  }
-
-  /* ================= UI ================= */
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div
-        className="absolute inset-0 bg-black/70"
-        onClick={() => setCartOpen(false)}
-      />
+    <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
+      <h1 className="text-xl font-bold mb-4">
+        📦 Acompanhar pedidos
+      </h1>
 
-      <div className="relative bg-zinc-900 w-full max-w-md rounded-2xl p-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="font-bold text-lg mb-3">Seu carrinho</h2>
+      {loading && <p>Carregando...</p>}
 
-        {carrinho.map((item) => (
+      {!loading && pedidos.length === 0 && (
+        <p>Nenhum pedido encontrado.</p>
+      )}
+
+      <div className="space-y-4">
+        {pedidos.map((pedido) => (
           <div
-            key={item.id}
-            className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
+            key={pedido.id}
+            className={`border rounded-xl p-4 ${
+              notificado === pedido.id
+                ? "border-yellow-400 animate-pulse"
+                : "border-zinc-800"
+            }`}
           >
-            <Image
-              src={item.imagem || "/produtos/placeholder.png"}
-              alt={item.nome}
-              width={60}
-              height={60}
-              className="rounded-lg"
-            />
-            <div>
-              <p className="font-semibold">{item.nome}</p>
-              <p className="text-sm text-zinc-400">
-                {item.qtd}x •{" "}
-                {(item.preco * item.qtd).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                })}
-              </p>
+            <div className="flex justify-between font-bold">
+              <span>{pedido.status}</span>
+              <span className="text-green-400">
+                R$ {pedido.total.toFixed(2)}
+              </span>
             </div>
           </div>
         ))}
-
-        <div className="mt-3 flex justify-between font-bold">
-          <span>Total</span>
-          <span>
-            {totalFinal.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </span>
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
-          <div className="flex gap-2">
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
-          </div>
-        </div>
-
-        {!cliente?.cadastrado && (
-          <button onClick={irParaLogin} className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl">
-            🎁 Cadastrar e ganhar 5% OFF
-          </button>
-        )}
-
-        <button onClick={pagarAgora} className="w-full mt-3 bg-zinc-700 py-2 rounded-xl">
-          💳 Pagar agora
-        </button>
-
-        <button
-          disabled={loading}
-          onClick={enviarPedidoWhatsApp}
-          className="w-full mt-2 bg-green-500 text-black py-3 rounded-xl font-bold"
-        >
-          🚚 Pagar na entrega
-        </button>
       </div>
     </div>
   );
