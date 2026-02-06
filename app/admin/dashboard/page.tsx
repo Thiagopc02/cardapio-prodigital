@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isAdminLogged } from "@/src/utils/adminAuth";
+import { isAdminLogged } from "@/utils/adminAuth";
 
 export default function Dashboard() {
   const router = useRouter();

@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { isAdminLogged } from "@/src/utils/adminAuth";
+import { isAdminLogged } from "@/utils/adminAuth";
 
 export default function AdminLayout({
   children,
