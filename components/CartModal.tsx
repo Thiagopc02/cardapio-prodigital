@@ -10,7 +10,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { obterCliente } from "@/src/utils/clienteStorage";
+import { obterCliente } from "@/utils/clienteStorage";
 
 /* ================= TIPOS ================= */
 
