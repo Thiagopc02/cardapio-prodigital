@@ -42,25 +42,24 @@ export default function StatusPage() {
   const [pedidoNotificado, setPedidoNotificado] =
     useState<string | null>(null);
 
+  // Guarda status anterior para detectar mudanças
   const statusAnterior = useRef<Record<string, PedidoStatus>>({});
 
   useEffect(() => {
-    // 🚫 SEM CLIENTE → NÃO ASSINA O SNAPSHOT
+    // 🔴 SEM CLIENTE → NÃO ASSINA SNAPSHOT
     if (!cliente?.telefone) {
-      setPedidos([]);
       setLoading(false);
       return;
     }
 
-    // 🔑 normaliza telefone igual ao Firestore
-    const telefoneNumerico = cliente.telefone.replace(/\D/g, "");
-    const telefoneFinal = telefoneNumerico.startsWith("55")
-      ? `+${telefoneNumerico}`
-      : `+55${telefoneNumerico}`;
+    // 🔑 NORMALIZA IGUAL AO PEDIDO SALVO
+    const telefoneFormatado = cliente.telefone.startsWith("+")
+      ? cliente.telefone
+      : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
     const q = query(
       collection(db, "pedidos"),
-      where("cliente.telefone", "==", telefoneFinal),
+      where("cliente.telefone", "==", telefoneFormatado),
       orderBy("createdAt", "desc")
     );
 
@@ -70,6 +69,7 @@ export default function StatusPage() {
 
         const statusAnt = statusAnterior.current[doc.id];
 
+        // 🔔 Detecta mudança de status
         if (statusAnt && statusAnt !== data.status) {
           setPedidoNotificado(doc.id);
           setTimeout(() => setPedidoNotificado(null), 4000);
