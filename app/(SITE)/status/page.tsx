@@ -42,50 +42,82 @@ export default function StatusPage() {
   const [pedidoNotificado, setPedidoNotificado] =
     useState<string | null>(null);
 
-  // guarda status anterior para detectar mudanças
+  // guarda status anterior (para notificação)
   const statusAnterior = useRef<Record<string, PedidoStatus>>({});
 
   useEffect(() => {
-    if (!cliente?.telefone) return;
+    if (!cliente) return;
 
-    // 🔑 NORMALIZA IGUAL AO FIRESTORE (+55...)
-    const telefoneFormatado = cliente.telefone.startsWith("+")
-      ? cliente.telefone
-      : `+55${cliente.telefone.replace(/\D/g, "")}`;
+    const queries = [];
 
-    const q = query(
-      collection(db, "pedidos"),
-      where("cliente.telefone", "==", telefoneFormatado),
-      orderBy("createdAt", "desc")
+    // 🔑 QUERY PRINCIPAL (CORRETA)
+    if (cliente.id) {
+      queries.push(
+        query(
+          collection(db, "pedidos"),
+          where("cliente.id", "==", cliente.id),
+          orderBy("createdAt", "desc")
+        )
+      );
+    }
+
+    // 🧯 FALLBACK (PEDIDOS ANTIGOS)
+    if (cliente.telefone) {
+      const telefoneFormatado = cliente.telefone.startsWith("+")
+        ? cliente.telefone
+        : `+55${cliente.telefone.replace(/\D/g, "")}`;
+
+      queries.push(
+        query(
+          collection(db, "pedidos"),
+          where("cliente.telefone", "==", telefoneFormatado),
+          orderBy("createdAt", "desc")
+        )
+      );
+    }
+
+    if (queries.length === 0) return;
+
+    // 🔥 LISTENERS EM PARALELO
+    const unsubscribes = queries.map((q) =>
+      onSnapshot(q, (snapshot) => {
+        setPedidos((prev) => {
+          const mapa = new Map(prev.map((p) => [p.id, p]));
+
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data() as Omit<Pedido, "id">;
+
+            const statusAnt = statusAnterior.current[doc.id];
+
+            if (statusAnt && statusAnt !== data.status) {
+              setPedidoNotificado(doc.id);
+              setTimeout(() => setPedidoNotificado(null), 4000);
+            }
+
+            statusAnterior.current[doc.id] = data.status;
+
+            mapa.set(doc.id, { id: doc.id, ...data });
+          });
+
+          return Array.from(mapa.values()).sort((a, b) => {
+            const ta = a.createdAt?.seconds ?? 0;
+            const tb = b.createdAt?.seconds ?? 0;
+            return tb - ta;
+          });
+        });
+
+        setLoading(false);
+      })
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lista: Pedido[] = snapshot.docs.map((doc) => {
-        const data = doc.data() as Omit<Pedido, "id">;
-
-        const statusAnt = statusAnterior.current[doc.id];
-
-        // 🔔 Detecta mudança de status
-        if (statusAnt && statusAnt !== data.status) {
-          setPedidoNotificado(doc.id);
-          setTimeout(() => setPedidoNotificado(null), 4000);
-        }
-
-        statusAnterior.current[doc.id] = data.status;
-
-        return { id: doc.id, ...data };
-      });
-
-      setPedidos(lista);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [cliente?.telefone]);
+    return () => {
+      unsubscribes.forEach((u) => u());
+    };
+  }, [cliente?.id, cliente?.telefone]);
 
   /* ================= UI ================= */
 
-  if (!cliente?.telefone) {
+  if (!cliente) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
         <h1 className="text-xl font-bold mb-2">
@@ -149,8 +181,7 @@ export default function StatusPage() {
                     {i.quantidade}x {i.nome}
                   </span>
                   <span>
-                    R${" "}
-                    {(i.preco * i.quantidade).toFixed(2)}
+                    R$ {(i.preco * i.quantidade).toFixed(2)}
                   </span>
                 </div>
               ))}

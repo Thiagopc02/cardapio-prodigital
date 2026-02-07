@@ -26,14 +26,7 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao" | "";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const {
-    carrinho,
-    total,
-    cartOpen,
-    setCartOpen,
-    limparCarrinho,
-  } = useCart();
-
+  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const router = useRouter();
 
   const cliente =
@@ -116,7 +109,7 @@ export default function CartModal() {
     return true;
   }
 
-  /* ================= WHATSAPP + FIRESTORE ================= */
+  /* ================= FINALIZAR PEDIDO ================= */
 
   async function enviarPedidoWhatsApp() {
     if (loading) return;
@@ -129,17 +122,21 @@ export default function CartModal() {
         ? `+${telefone}`
         : `+55${telefone}`;
 
-      if (cliente?.cadastrado) {
+      /* ✅ ATUALIZA CLIENTE SEM PERDER ID */
+      if (cliente) {
         salvarCliente({
-          ...cliente,
+          ...cliente, // 🔑 mantém id, email, etc
           nome,
-          telefone,
+          telefone: telefoneFormatado,
           comprasComDesconto: cliente.comprasComDesconto + 1,
         });
       }
 
+      /* ================= FIRESTORE ================= */
+
       await addDoc(collection(db, "pedidos"), {
         cliente: {
+          id: cliente?.id ?? null, // 🔥 ajuda em filtros futuros
           nome,
           telefone: telefoneFormatado,
         },
@@ -168,6 +165,8 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
+      /* ================= WHATSAPP ================= */
+
       const itensTexto = carrinho
         .map(
           (item) =>
@@ -187,6 +186,7 @@ export default function CartModal() {
 
       const mensagem = `
 🍔 *NOVO PEDIDO*
+
 👤 ${nome}
 📞 ${telefoneFormatado}
 
