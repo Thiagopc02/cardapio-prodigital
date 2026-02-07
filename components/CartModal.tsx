@@ -21,6 +21,8 @@ type Endereco = {
   uf: string;
 };
 
+type FormaPagamento = "dinheiro" | "pix" | "cartao" | "";
+
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
@@ -52,6 +54,11 @@ export default function CartModal() {
     uf: "",
   });
 
+  const [formaPagamento, setFormaPagamento] =
+    useState<FormaPagamento>("");
+
+  const [trocoPara, setTrocoPara] = useState("");
+
   /* ================= BUSCAR CEP ================= */
 
   useEffect(() => {
@@ -81,11 +88,9 @@ export default function CartModal() {
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= AÇÕES ================= */
+  /* ================= VALIDAR ================= */
 
-  async function enviarPedidoWhatsApp() {
-    if (loading) return;
-
+  function validarPedido() {
     if (
       !nome ||
       !telefone ||
@@ -94,9 +99,28 @@ export default function CartModal() {
       !endereco.numero ||
       !endereco.bairro
     ) {
-      alert("Preencha todos os dados corretamente.");
-      return;
+      alert("Preencha todos os dados de entrega.");
+      return false;
     }
+
+    if (!formaPagamento) {
+      alert("Escolha a forma de pagamento.");
+      return false;
+    }
+
+    if (formaPagamento === "dinheiro" && !trocoPara) {
+      alert("Informe o valor do troco.");
+      return false;
+    }
+
+    return true;
+  }
+
+  /* ================= WHATSAPP + FIRESTORE ================= */
+
+  async function enviarPedidoWhatsApp() {
+    if (loading) return;
+    if (!validarPedido()) return;
 
     try {
       setLoading(true);
@@ -135,7 +159,11 @@ export default function CartModal() {
           quantidade: item.qtd,
         })),
         total: totalFinal,
-        pagamento: "entrega",
+        pagamento: {
+          tipo: formaPagamento,
+          trocoPara:
+            formaPagamento === "dinheiro" ? trocoPara : null,
+        },
         status: "novo",
         createdAt: serverTimestamp(),
       });
@@ -150,6 +178,13 @@ export default function CartModal() {
         )
         .join("\n\n");
 
+      const pagamentoTexto =
+        formaPagamento === "dinheiro"
+          ? `Dinheiro (troco para ${trocoPara})`
+          : formaPagamento === "pix"
+          ? "Pix"
+          : "Cartão (Crédito/Débito)";
+
       const mensagem = `
 🍔 *NOVO PEDIDO*
 👤 ${nome}
@@ -158,7 +193,6 @@ export default function CartModal() {
 📍 *ENDEREÇO*
 ${endereco.rua}, Nº ${endereco.numero}
 ${endereco.bairro} - ${endereco.cidade}/${endereco.uf}
-CEP ${endereco.cep}
 
 🛒 *ITENS*
 ${itensTexto}
@@ -169,7 +203,8 @@ ${totalFinal.toLocaleString("pt-BR", {
         currency: "BRL",
       })}
 
-🚚 Pagamento na entrega
+💳 *PAGAMENTO*
+${pagamentoTexto}
       `.trim();
 
       const telefoneWhatsApp = "62994524744";
@@ -200,23 +235,13 @@ ${totalFinal.toLocaleString("pt-BR", {
 
   return (
     <div className="fixed inset-0 z-[9998] flex items-end justify-center">
-      {/* BACKDROP */}
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
       />
 
-      {/* MODAL */}
-      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto animate-slideUp">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="font-bold text-lg">🛒 Seu carrinho</h2>
-          <button
-            onClick={() => setCartOpen(false)}
-            className="text-red-400 font-semibold"
-          >
-            Fechar
-          </button>
-        </div>
+      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
+        <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
 
         {carrinho.map((item) => (
           <div
@@ -253,6 +278,7 @@ ${totalFinal.toLocaleString("pt-BR", {
           </span>
         </div>
 
+        {/* DADOS */}
         <div className="mt-4 space-y-2">
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
           <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
@@ -262,6 +288,35 @@ ${totalFinal.toLocaleString("pt-BR", {
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
             <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
           </div>
+        </div>
+
+        {/* PAGAMENTO */}
+        <div className="mt-4 space-y-2">
+          <p className="font-semibold">Forma de pagamento</p>
+
+          <select
+            value={formaPagamento}
+            onChange={(e) =>
+              setFormaPagamento(e.target.value as FormaPagamento)
+            }
+            className="w-full p-2 rounded bg-zinc-800"
+          >
+            <option value="">Selecione</option>
+            <option value="dinheiro">💵 Dinheiro</option>
+            <option value="pix">⚡ Pix</option>
+            <option value="cartao">💳 Cartão (Crédito/Débito)</option>
+          </select>
+
+          {formaPagamento === "dinheiro" && (
+            <input
+              className="w-full p-2 rounded bg-zinc-800"
+              placeholder="Troco para quanto?"
+              value={trocoPara}
+              onChange={(e) =>
+                setTrocoPara(e.target.value.replace(/\D/g, ""))
+              }
+            />
+          )}
         </div>
 
         {!cliente?.cadastrado && (
@@ -276,9 +331,9 @@ ${totalFinal.toLocaleString("pt-BR", {
         <button
           disabled={loading}
           onClick={enviarPedidoWhatsApp}
-          className="w-full mt-3 bg-green-500 text-black py-3 rounded-xl font-bold"
+          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold"
         >
-          🚚 Pagar na entrega
+          🚚 Finalizar pedido
         </button>
       </div>
     </div>
