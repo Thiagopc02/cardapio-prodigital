@@ -42,82 +42,53 @@ export default function StatusPage() {
   const [pedidoNotificado, setPedidoNotificado] =
     useState<string | null>(null);
 
-  // guarda status anterior (para notificação)
   const statusAnterior = useRef<Record<string, PedidoStatus>>({});
 
   useEffect(() => {
-    if (!cliente) return;
-
-    const queries = [];
-
-    // 🔑 QUERY PRINCIPAL (CORRETA)
-    if (cliente.id) {
-      queries.push(
-        query(
-          collection(db, "pedidos"),
-          where("cliente.id", "==", cliente.id),
-          orderBy("createdAt", "desc")
-        )
-      );
+    if (!cliente?.telefone) {
+      setLoading(false);
+      return;
     }
 
-    // 🧯 FALLBACK (PEDIDOS ANTIGOS)
-    if (cliente.telefone) {
-      const telefoneFormatado = cliente.telefone.startsWith("+")
-        ? cliente.telefone
-        : `+55${cliente.telefone.replace(/\D/g, "")}`;
+    // 🔑 NORMALIZA TELEFONE (aceita antigo e novo)
+    const telefoneNumerico = cliente.telefone.replace(/\D/g, "");
+    const telefoneCom55 = telefoneNumerico.startsWith("55")
+      ? `+${telefoneNumerico}`
+      : `+55${telefoneNumerico}`;
 
-      queries.push(
-        query(
-          collection(db, "pedidos"),
-          where("cliente.telefone", "==", telefoneFormatado),
-          orderBy("createdAt", "desc")
-        )
-      );
-    }
-
-    if (queries.length === 0) return;
-
-    // 🔥 LISTENERS EM PARALELO
-    const unsubscribes = queries.map((q) =>
-      onSnapshot(q, (snapshot) => {
-        setPedidos((prev) => {
-          const mapa = new Map(prev.map((p) => [p.id, p]));
-
-          snapshot.docs.forEach((doc) => {
-            const data = doc.data() as Omit<Pedido, "id">;
-
-            const statusAnt = statusAnterior.current[doc.id];
-
-            if (statusAnt && statusAnt !== data.status) {
-              setPedidoNotificado(doc.id);
-              setTimeout(() => setPedidoNotificado(null), 4000);
-            }
-
-            statusAnterior.current[doc.id] = data.status;
-
-            mapa.set(doc.id, { id: doc.id, ...data });
-          });
-
-          return Array.from(mapa.values()).sort((a, b) => {
-            const ta = a.createdAt?.seconds ?? 0;
-            const tb = b.createdAt?.seconds ?? 0;
-            return tb - ta;
-          });
-        });
-
-        setLoading(false);
-      })
+    const q = query(
+      collection(db, "pedidos"),
+      where("cliente.telefone", "==", telefoneCom55),
+      orderBy("createdAt", "desc")
     );
 
-    return () => {
-      unsubscribes.forEach((u) => u());
-    };
-  }, [cliente?.id, cliente?.telefone]);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const lista: Pedido[] = snapshot.docs.map((doc) => {
+        const data = doc.data() as Omit<Pedido, "id">;
+
+        const statusAnt = statusAnterior.current[doc.id];
+
+        // 🔔 Notificação de mudança
+        if (statusAnt && statusAnt !== data.status) {
+          setPedidoNotificado(doc.id);
+          setTimeout(() => setPedidoNotificado(null), 4000);
+        }
+
+        statusAnterior.current[doc.id] = data.status;
+
+        return { id: doc.id, ...data };
+      });
+
+      setPedidos(lista);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [cliente?.telefone]);
 
   /* ================= UI ================= */
 
-  if (!cliente) {
+  if (!cliente?.telefone) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
         <h1 className="text-xl font-bold mb-2">
