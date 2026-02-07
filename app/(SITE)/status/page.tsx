@@ -27,7 +27,6 @@ type Pedido = {
   id: string;
   status: PedidoStatus;
   total: number;
-  pagamento: string;
   itens: ItemPedido[];
   createdAt?: Timestamp;
 };
@@ -35,24 +34,28 @@ type Pedido = {
 /* ================= COMPONENTE ================= */
 
 export default function StatusPage() {
-  const cliente = obterCliente();
+  const cliente =
+    typeof window !== "undefined" ? obterCliente() : null;
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pedidoNotificado, setPedidoNotificado] = useState<string | null>(null);
+  const [pedidoNotificado, setPedidoNotificado] =
+    useState<string | null>(null);
 
-  // guarda status anterior para detectar mudança
+  // guarda status anterior para detectar mudanças
   const statusAnterior = useRef<Record<string, PedidoStatus>>({});
 
   useEffect(() => {
-    // 👉 SEM cliente, NÃO FAZ NADA (sem setState)
     if (!cliente?.telefone) return;
 
-    const telefoneNormalizado = cliente.telefone.replace(/\D/g, "");
+    // 🔑 NORMALIZA IGUAL AO FIRESTORE (+55...)
+    const telefoneFormatado = cliente.telefone.startsWith("+")
+      ? cliente.telefone
+      : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
     const q = query(
       collection(db, "pedidos"),
-      where("cliente.telefone", "==", telefoneNormalizado),
+      where("cliente.telefone", "==", telefoneFormatado),
       orderBy("createdAt", "desc")
     );
 
@@ -62,7 +65,7 @@ export default function StatusPage() {
 
         const statusAnt = statusAnterior.current[doc.id];
 
-        // 🔔 detecta mudança de status
+        // 🔔 Detecta mudança de status
         if (statusAnt && statusAnt !== data.status) {
           setPedidoNotificado(doc.id);
           setTimeout(() => setPedidoNotificado(null), 4000);
@@ -82,11 +85,12 @@ export default function StatusPage() {
 
   /* ================= UI ================= */
 
-  // 👉 CLIENTE NÃO IDENTIFICADO
   if (!cliente?.telefone) {
     return (
-      <div className="p-4 text-white max-w-md mx-auto">
-        <h1 className="text-xl font-bold mb-2">📦 Acompanhar pedidos</h1>
+      <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
+        <h1 className="text-xl font-bold mb-2">
+          📦 Acompanhar pedidos
+        </h1>
         <p className="text-zinc-400">
           Nenhum cliente identificado neste dispositivo.
         </p>
@@ -95,15 +99,19 @@ export default function StatusPage() {
   }
 
   return (
-    <div className="p-4 text-white max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">📦 Acompanhar pedidos</h1>
+    <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
+      <h1 className="text-xl font-bold mb-4">
+        📦 Acompanhar pedidos
+      </h1>
 
       {loading && (
         <p className="text-zinc-400">Carregando pedidos...</p>
       )}
 
       {!loading && pedidos.length === 0 && (
-        <p className="text-zinc-400">Nenhum pedido encontrado.</p>
+        <p className="text-zinc-400">
+          Nenhum pedido encontrado.
+        </p>
       )}
 
       <div className="space-y-4">
@@ -133,12 +141,16 @@ export default function StatusPage() {
 
             <div className="mt-2 text-sm space-y-1">
               {p.itens.map((i) => (
-                <div key={i.id} className="flex justify-between">
+                <div
+                  key={i.id}
+                  className="flex justify-between text-zinc-300"
+                >
                   <span>
                     {i.quantidade}x {i.nome}
                   </span>
                   <span>
-                    R$ {(i.preco * i.quantidade).toFixed(2)}
+                    R${" "}
+                    {(i.preco * i.quantidade).toFixed(2)}
                   </span>
                 </div>
               ))}
