@@ -1,5 +1,5 @@
 export type Produto = {
-  id: string;          // Firestore usa string
+  id: string;
   nome: string;
   preco: number;
   categoria: string;

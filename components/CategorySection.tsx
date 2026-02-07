@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import ProductCard from "./ProductCard";
-import { Produto } from "@/src/types/Produto";
+import { Produto } from "@/types/Produto";
 
 type Props = {
   categoria: string;
