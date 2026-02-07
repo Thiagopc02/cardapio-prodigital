@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Produto } from "@/src/types/Produto";
+import { Produto } from "@/types/Produto";
 import { useCart } from "@/context/CartContext";
 
 type Props = {
