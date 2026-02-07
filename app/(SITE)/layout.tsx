@@ -3,6 +3,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
 import FloatingCart from "@/components/FloatingCart";
+import CartModal from "@/components/CartModal";
 
 export const metadata = {
   title: "Cardápio Pro Digital",
@@ -21,6 +22,11 @@ export default function PublicLayout({
           <CartProvider>
             <Header />
             {children}
+
+            {/* MODAL DO CARRINHO */}
+            <CartModal />
+
+            {/* BOTÃO FLUTUANTE */}
             <FloatingCart />
           </CartProvider>
         </AuthProvider>

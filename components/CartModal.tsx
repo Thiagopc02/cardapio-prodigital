@@ -1,123 +1,101 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { obterCliente } from "@/utils/clienteStorage";
+import { useCart } from "@/context/CartContext";
 
-/* ================= TIPOS ================= */
+export default function CartModal() {
+  const {
+    carrinho,
+    cartOpen,
+    setCartOpen,
+    adicionarProduto,
+    removerProduto,
+    total,
+    limparCarrinho,
+  } = useCart();
 
-type StatusPedido =
-  | "novo"
-  | "preparando"
-  | "em rota"
-  | "finalizado";
-
-type ItemPedido = {
-  id: string;
-  nome: string;
-  quantidade: number;
-  preco: number;
-};
-
-type Pedido = {
-  id: string;
-  status: StatusPedido;
-  total: number;
-  pagamento: string;
-  itens: ItemPedido[];
-  createdAt?: Timestamp;
-};
-
-export default function StatusPage() {
-  const cliente = obterCliente();
-
-  const [pedidos, setPedidos] = useState<Pedido[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const statusAnterior = useRef<Record<string, StatusPedido>>({});
-  const [notificado, setNotificado] = useState<string | null>(
-    null
-  );
-
-  useEffect(() => {
-    if (!cliente?.telefone) return;
-
-    const q = query(
-      collection(db, "pedidos"),
-      where("cliente.telefone", "==", cliente.telefone),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const lista: Pedido[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Omit<Pedido, "id">),
-      }));
-
-      lista.forEach((p) => {
-        if (
-          statusAnterior.current[p.id] &&
-          statusAnterior.current[p.id] !== p.status
-        ) {
-          setNotificado(p.id);
-          setTimeout(() => setNotificado(null), 4000);
-        }
-        statusAnterior.current[p.id] = p.status;
-      });
-
-      setPedidos(lista);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [cliente?.telefone]);
-
-  if (!cliente?.telefone) {
-    return (
-      <div className="min-h-screen bg-zinc-950 text-white p-4">
-        Nenhum cliente identificado.
-      </div>
-    );
-  }
+  if (!cartOpen) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto">
-      <h1 className="text-xl font-bold mb-4">
-        📦 Acompanhar pedidos
-      </h1>
-
-      {loading && <p>Carregando...</p>}
-
-      {!loading && pedidos.length === 0 && (
-        <p>Nenhum pedido encontrado.</p>
-      )}
-
-      <div className="space-y-4">
-        {pedidos.map((pedido) => (
-          <div
-            key={pedido.id}
-            className={`border rounded-xl p-4 ${
-              notificado === pedido.id
-                ? "border-yellow-400 animate-pulse"
-                : "border-zinc-800"
-            }`}
+    <div className="fixed inset-0 z-[9998] bg-black/60 flex justify-center items-end">
+      <div className="bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 animate-slideUp">
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold">🛒 Seu carrinho</h2>
+          <button
+            onClick={() => setCartOpen(false)}
+            className="text-red-400 font-bold"
           >
-            <div className="flex justify-between font-bold">
-              <span>{pedido.status}</span>
-              <span className="text-green-400">
-                R$ {pedido.total.toFixed(2)}
-              </span>
-            </div>
+            Fechar
+          </button>
+        </div>
+
+        {/* ITENS */}
+        {carrinho.length === 0 ? (
+          <p className="text-zinc-400 text-sm">
+            Seu carrinho está vazio.
+          </p>
+        ) : (
+          <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+            {carrinho.map((item) => (
+              <div
+                key={item.id}
+                className="flex justify-between items-center bg-zinc-800 rounded-lg p-3"
+              >
+                <div>
+                  <p className="font-semibold">{item.nome}</p>
+                  <p className="text-xs text-zinc-400">
+                    R$ {item.preco.toFixed(2)}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => removerProduto(item.id)}
+                    className="w-7 h-7 bg-zinc-700 rounded text-white"
+                  >
+                    −
+                  </button>
+                  <span className="w-6 text-center">
+                    {item.qtd}
+                  </span>
+                  <button
+                    onClick={() => adicionarProduto(item)}
+                    className="w-7 h-7 bg-green-500 rounded text-black font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
+
+        {/* FOOTER */}
+        <div className="border-t border-zinc-700 mt-4 pt-4 space-y-3">
+          <div className="flex justify-between font-bold text-lg">
+            <span>Total</span>
+            <span className="text-green-400">
+              R$ {total.toFixed(2)}
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              // aqui depois entra WhatsApp
+              alert("Finalizar pedido (próximo passo)");
+            }}
+            className="w-full bg-green-500 text-black font-bold py-3 rounded-lg"
+          >
+            Finalizar pedido
+          </button>
+
+          <button
+            onClick={limparCarrinho}
+            className="w-full text-xs text-red-400"
+          >
+            Limpar carrinho
+          </button>
+        </div>
       </div>
     </div>
   );
