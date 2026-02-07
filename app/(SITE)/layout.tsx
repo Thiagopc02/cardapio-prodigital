@@ -2,6 +2,7 @@ import "../globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import Header from "@/components/Header";
+import FloatingCart from "@/components/FloatingCart";
 
 export const metadata = {
   title: "Cardápio Pro Digital",
@@ -20,6 +21,7 @@ export default function PublicLayout({
           <CartProvider>
             <Header />
             {children}
+            <FloatingCart />
           </CartProvider>
         </AuthProvider>
       </body>
