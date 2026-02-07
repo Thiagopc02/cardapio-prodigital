@@ -42,24 +42,23 @@ export default function StatusPage() {
   const [pedidoNotificado, setPedidoNotificado] =
     useState<string | null>(null);
 
-  // Guarda status anterior para detectar mudanças
   const statusAnterior = useRef<Record<string, PedidoStatus>>({});
 
   useEffect(() => {
-    // 🔴 SEM CLIENTE → NÃO ASSINA SNAPSHOT
     if (!cliente?.telefone) {
+      setPedidos([]);
       setLoading(false);
       return;
     }
 
-    // 🔑 NORMALIZA IGUAL AO PEDIDO SALVO
-    const telefoneFormatado = cliente.telefone.startsWith("+")
+    // 🔑 TELEFONE NO MESMO FORMATO DO FIRESTORE
+    const telefone = cliente.telefone.startsWith("+")
       ? cliente.telefone
       : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
     const q = query(
       collection(db, "pedidos"),
-      where("cliente.telefone", "==", telefoneFormatado),
+      where("cliente.telefone", "==", telefone),
       orderBy("createdAt", "desc")
     );
 
@@ -69,7 +68,6 @@ export default function StatusPage() {
 
         const statusAnt = statusAnterior.current[doc.id];
 
-        // 🔔 Detecta mudança de status
         if (statusAnt && statusAnt !== data.status) {
           setPedidoNotificado(doc.id);
           setTimeout(() => setPedidoNotificado(null), 4000);
