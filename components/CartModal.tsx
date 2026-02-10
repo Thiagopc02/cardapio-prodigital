@@ -118,16 +118,16 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const telefoneFormatado = telefone.startsWith("55")
+      const telefoneCliente = telefone.startsWith("55")
         ? `+${telefone}`
         : `+55${telefone}`;
 
-      /* ✅ ATUALIZA CLIENTE SEM PERDER ID */
+      /* 🔒 SALVAR CLIENTE */
       if (cliente) {
         salvarCliente({
-          ...cliente, // 🔑 mantém id, email, etc
+          ...cliente,
           nome,
-          telefone: telefoneFormatado,
+          telefone: telefoneCliente,
           comprasComDesconto: cliente.comprasComDesconto + 1,
         });
       }
@@ -136,9 +136,9 @@ export default function CartModal() {
 
       await addDoc(collection(db, "pedidos"), {
         cliente: {
-          id: cliente?.id ?? null, // 🔥 ajuda em filtros futuros
+          id: cliente?.id ?? null,
           nome,
-          telefone: telefoneFormatado,
+          telefone: telefoneCliente,
         },
         endereco: {
           rua: endereco.rua,
@@ -165,17 +165,17 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
-      /* ================= WHATSAPP ================= */
+      /* ================= MENSAGEM WHATSAPP ================= */
 
       const itensTexto = carrinho
         .map(
           (item) =>
-            `🍔 ${item.qtd}x ${item.nome}\n💵 ${(item.preco * item.qtd).toLocaleString(
+            `• ${item.qtd}x ${item.nome} — ${(item.preco * item.qtd).toLocaleString(
               "pt-BR",
               { style: "currency", currency: "BRL" }
             )}`
         )
-        .join("\n\n");
+        .join("\n");
 
       const pagamentoTexto =
         formaPagamento === "dinheiro"
@@ -188,7 +188,7 @@ export default function CartModal() {
 🍔 *NOVO PEDIDO*
 
 👤 ${nome}
-📞 ${telefoneFormatado}
+📞 ${telefoneCliente}
 
 📍 *ENDEREÇO*
 ${endereco.rua}, Nº ${endereco.numero}
@@ -207,19 +207,21 @@ ${totalFinal.toLocaleString("pt-BR", {
 ${pagamentoTexto}
       `.trim();
 
-      const telefoneWhatsApp = "62994524744";
+      /* ================= WHATSAPP (MOBILE SAFE) ================= */
 
-      window.open(
-        `https://wa.me/55${telefoneWhatsApp}?text=${encodeURIComponent(
-          mensagem
-        )}`,
-        "_blank"
-      );
+      const telefoneWhatsApp = "5562994524744"; // DDI + número, SEM +
+
+      const whatsappUrl = `https://wa.me/${telefoneWhatsApp}?text=${encodeURIComponent(
+        mensagem
+      )}`;
+
+      // 🔥 Mais confiável no celular
+      window.location.href = whatsappUrl;
 
       limparCarrinho();
       setCartOpen(false);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
@@ -304,7 +306,7 @@ ${pagamentoTexto}
             <option value="">Selecione</option>
             <option value="dinheiro">💵 Dinheiro</option>
             <option value="pix">⚡ Pix</option>
-            <option value="cartao">💳 Cartão (Crédito/Débito)</option>
+            <option value="cartao">💳 Cartão</option>
           </select>
 
           {formaPagamento === "dinheiro" && (

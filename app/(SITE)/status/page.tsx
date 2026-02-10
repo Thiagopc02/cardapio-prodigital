@@ -31,11 +31,10 @@ type Pedido = {
   createdAt?: Timestamp;
 };
 
-/* ================= COMPONENTE ================= */
+/* ================= PAGE ================= */
 
 export default function StatusPage() {
-  const cliente =
-    typeof window !== "undefined" ? obterCliente() : null;
+  const cliente = typeof window !== "undefined" ? obterCliente() : null;
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,12 +45,10 @@ export default function StatusPage() {
 
   useEffect(() => {
     if (!cliente?.telefone) {
-      setPedidos([]);
       setLoading(false);
       return;
     }
 
-    // 🔑 TELEFONE NO MESMO FORMATO DO FIRESTORE
     const telefone = cliente.telefone.startsWith("+")
       ? cliente.telefone
       : `+55${cliente.telefone.replace(/\D/g, "")}`;
@@ -67,10 +64,9 @@ export default function StatusPage() {
         const data = doc.data() as Omit<Pedido, "id">;
 
         const statusAnt = statusAnterior.current[doc.id];
-
         if (statusAnt && statusAnt !== data.status) {
           setPedidoNotificado(doc.id);
-          setTimeout(() => setPedidoNotificado(null), 4000);
+          setTimeout(() => setPedidoNotificado(null), 3000);
         }
 
         statusAnterior.current[doc.id] = data.status;
@@ -120,7 +116,7 @@ export default function StatusPage() {
         {pedidos.map((p) => (
           <div
             key={p.id}
-            className={`relative p-4 rounded-xl border transition-all ${
+            className={`relative p-4 rounded-xl border ${
               pedidoNotificado === p.id
                 ? "border-yellow-400 animate-pulse"
                 : "border-zinc-800"
