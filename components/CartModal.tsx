@@ -184,6 +184,9 @@ export default function CartModal() {
           ? "Pix"
           : "Cartão (Crédito/Débito)";
 
+      const urlStatus =
+        "https://cardapio-prodigital.vercel.app/status";
+
       const mensagem = `
 🍔 *NOVO PEDIDO*
 
@@ -205,17 +208,19 @@ ${totalFinal.toLocaleString("pt-BR", {
 
 💳 *PAGAMENTO*
 ${pagamentoTexto}
+
+🔎 *Acompanhe o seu pedido:*
+${urlStatus}
       `.trim();
 
-      /* ================= WHATSAPP (MOBILE SAFE) ================= */
+      /* ================= WHATSAPP ================= */
 
-      const telefoneWhatsApp = "5562994524744"; // DDI + número, SEM +
+      const telefoneWhatsApp = "5562994524744"; // DDI + número (sem +)
 
       const whatsappUrl = `https://wa.me/${telefoneWhatsApp}?text=${encodeURIComponent(
         mensagem
       )}`;
 
-      // 🔥 Mais confiável no celular
       window.location.href = whatsappUrl;
 
       limparCarrinho();
