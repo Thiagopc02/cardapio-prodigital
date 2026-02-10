@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
@@ -26,16 +29,13 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao" | "";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
-  const router = useRouter();
+  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } =
+    useCart();
 
   const cliente =
     typeof window !== "undefined" ? obterCliente() : null;
 
   const [loading, setLoading] = useState(false);
-
-  const [nome, setNome] = useState(cliente?.nome ?? "");
-  const [telefone, setTelefone] = useState(cliente?.telefone ?? "");
 
   const [endereco, setEndereco] = useState<Endereco>({
     cep: "",
@@ -85,14 +85,14 @@ export default function CartModal() {
 
   function validarPedido() {
     if (
-      !nome ||
-      !telefone ||
+      !cliente?.nome ||
+      !cliente?.telefone ||
       !endereco.cep ||
       !endereco.rua ||
       !endereco.numero ||
       !endereco.bairro
     ) {
-      alert("Preencha todos os dados de entrega.");
+      alert("Preencha todos os dados.");
       return false;
     }
 
@@ -118,37 +118,26 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const telefoneCliente = telefone.startsWith("55")
-        ? `+${telefone}`
-        : `+55${telefone}`;
+      const telefoneCliente = cliente!.telefone.startsWith("+")
+        ? cliente!.telefone
+        : `+55${cliente!.telefone.replace(/\D/g, "")}`;
 
-      /* 🔒 SALVAR CLIENTE */
-      if (cliente) {
-        salvarCliente({
-          ...cliente,
-          nome,
-          telefone: telefoneCliente,
-          comprasComDesconto: cliente.comprasComDesconto + 1,
-        });
-      }
+      const pedidoId = crypto.randomUUID();
 
-      /* ================= FIRESTORE ================= */
+      /* ATUALIZA CLIENTE */
+      salvarCliente({
+        ...cliente!,
+        comprasComDesconto: cliente!.comprasComDesconto + 1,
+      });
 
+      /* FIRESTORE */
       await addDoc(collection(db, "pedidos"), {
+        pedidoId,
         cliente: {
-          id: cliente?.id ?? null,
-          nome,
+          nome: cliente!.nome,
           telefone: telefoneCliente,
         },
-        endereco: {
-          rua: endereco.rua,
-          numero: endereco.numero,
-          bairro: endereco.bairro,
-          cep: endereco.cep,
-          complemento: endereco.complemento || "",
-          cidade: endereco.cidade,
-          uf: endereco.uf,
-        },
+        endereco,
         itens: carrinho.map((item) => ({
           id: item.id,
           nome: item.nome,
@@ -165,15 +154,11 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
-      /* ================= MENSAGEM WHATSAPP ================= */
-
+      /* WHATSAPP */
       const itensTexto = carrinho
         .map(
-          (item) =>
-            `• ${item.qtd}x ${item.nome} — ${(item.preco * item.qtd).toLocaleString(
-              "pt-BR",
-              { style: "currency", currency: "BRL" }
-            )}`
+          (i) =>
+            `• ${i.qtd}x ${i.nome} — R$ ${(i.preco * i.qtd).toFixed(2)}`
         )
         .join("\n");
 
@@ -182,15 +167,14 @@ export default function CartModal() {
           ? `Dinheiro (troco para ${trocoPara})`
           : formaPagamento === "pix"
           ? "Pix"
-          : "Cartão (Crédito/Débito)";
+          : "Cartão";
 
-      const urlStatus =
-        "https://cardapio-prodigital.vercel.app/status";
+      const urlStatus = `https://cardapio-prodigital.vercel.app/status?id=${pedidoId}`;
 
       const mensagem = `
 🍔 *NOVO PEDIDO*
 
-👤 ${nome}
+👤 ${cliente!.nome}
 📞 ${telefoneCliente}
 
 📍 *ENDEREÇO*
@@ -201,10 +185,7 @@ ${endereco.bairro} - ${endereco.cidade}/${endereco.uf}
 ${itensTexto}
 
 💰 *TOTAL*
-${totalFinal.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      })}
+R$ ${totalFinal.toFixed(2)}
 
 💳 *PAGAMENTO*
 ${pagamentoTexto}
@@ -213,35 +194,24 @@ ${pagamentoTexto}
 ${urlStatus}
       `.trim();
 
-      /* ================= WHATSAPP ================= */
-
-      const telefoneWhatsApp = "5562994524744"; // DDI + número (sem +)
-
-      const whatsappUrl = `https://wa.me/${telefoneWhatsApp}?text=${encodeURIComponent(
+      window.location.href = `https://wa.me/5562994524744?text=${encodeURIComponent(
         mensagem
       )}`;
 
-      window.location.href = whatsappUrl;
-
       limparCarrinho();
       setCartOpen(false);
-    } catch (error) {
-      console.error(error);
+    } catch (e) {
+      console.error(e);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
     }
   }
 
-  function irParaLogin() {
-    setCartOpen(false);
-    router.push("/login");
-  }
-
   /* ================= UI ================= */
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-end justify-center">
+    <div className="fixed inset-0 z-9998 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
@@ -265,75 +235,12 @@ ${urlStatus}
             <div>
               <p className="font-semibold">{item.nome}</p>
               <p className="text-sm text-zinc-400">
-                {item.qtd}x •{" "}
-                {(item.preco * item.qtd).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                })}
+                {item.qtd}x • R${" "}
+                {(item.preco * item.qtd).toFixed(2)}
               </p>
             </div>
           </div>
         ))}
-
-        <div className="mt-3 flex justify-between font-bold">
-          <span>Total</span>
-          <span className="text-green-400">
-            {totalFinal.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </span>
-        </div>
-
-        {/* DADOS */}
-        <div className="mt-4 space-y-2">
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Telefone" value={telefone} onChange={(e) => setTelefone(e.target.value.replace(/\D/g, ""))} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="CEP" value={endereco.cep} onChange={(e) => setEndereco({ ...endereco, cep: e.target.value.replace(/\D/g, "") })} />
-          <input className="w-full p-2 rounded bg-zinc-800" placeholder="Rua" value={endereco.rua} onChange={(e) => setEndereco({ ...endereco, rua: e.target.value })} />
-          <div className="flex gap-2">
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Número" value={endereco.numero} onChange={(e) => setEndereco({ ...endereco, numero: e.target.value })} />
-            <input className="w-1/2 p-2 rounded bg-zinc-800" placeholder="Bairro" value={endereco.bairro} onChange={(e) => setEndereco({ ...endereco, bairro: e.target.value })} />
-          </div>
-        </div>
-
-        {/* PAGAMENTO */}
-        <div className="mt-4 space-y-2">
-          <p className="font-semibold">Forma de pagamento</p>
-
-          <select
-            value={formaPagamento}
-            onChange={(e) =>
-              setFormaPagamento(e.target.value as FormaPagamento)
-            }
-            className="w-full p-2 rounded bg-zinc-800"
-          >
-            <option value="">Selecione</option>
-            <option value="dinheiro">💵 Dinheiro</option>
-            <option value="pix">⚡ Pix</option>
-            <option value="cartao">💳 Cartão</option>
-          </select>
-
-          {formaPagamento === "dinheiro" && (
-            <input
-              className="w-full p-2 rounded bg-zinc-800"
-              placeholder="Troco para quanto?"
-              value={trocoPara}
-              onChange={(e) =>
-                setTrocoPara(e.target.value.replace(/\D/g, ""))
-              }
-            />
-          )}
-        </div>
-
-        {!cliente?.cadastrado && (
-          <button
-            onClick={irParaLogin}
-            className="w-full mt-3 border border-green-500 text-green-500 py-2 rounded-xl"
-          >
-            🎁 Cadastrar e ganhar 5% OFF
-          </button>
-        )}
 
         <button
           disabled={loading}
