@@ -2,11 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
@@ -24,13 +20,12 @@ type Endereco = {
   uf: string;
 };
 
-type FormaPagamento = "dinheiro" | "pix" | "cartao" | "";
+type FormaPagamento = "dinheiro" | "pix" | "cartao";
 
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } =
-    useCart();
+  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
 
   const cliente =
     typeof window !== "undefined" ? obterCliente() : null;
@@ -48,7 +43,7 @@ export default function CartModal() {
   });
 
   const [formaPagamento, setFormaPagamento] =
-    useState<FormaPagamento>("");
+    useState<FormaPagamento>("pix");
 
   const [trocoPara, setTrocoPara] = useState("");
 
@@ -84,20 +79,18 @@ export default function CartModal() {
   /* ================= VALIDAR ================= */
 
   function validarPedido() {
+    if (!cliente) {
+      alert("Cliente não identificado.");
+      return false;
+    }
+
     if (
-      !cliente?.nome ||
-      !cliente?.telefone ||
       !endereco.cep ||
       !endereco.rua ||
       !endereco.numero ||
       !endereco.bairro
     ) {
-      alert("Preencha todos os dados.");
-      return false;
-    }
-
-    if (!formaPagamento) {
-      alert("Escolha a forma de pagamento.");
+      alert("Preencha todos os dados do endereço.");
       return false;
     }
 
@@ -114,27 +107,32 @@ export default function CartModal() {
   async function enviarPedidoWhatsApp() {
     if (loading) return;
     if (!validarPedido()) return;
+    if (!cliente) return;
 
     try {
       setLoading(true);
 
-      const telefoneCliente = cliente!.telefone.startsWith("+")
-        ? cliente!.telefone
-        : `+55${cliente!.telefone.replace(/\D/g, "")}`;
-
       const pedidoId = crypto.randomUUID();
 
-      /* ATUALIZA CLIENTE */
+      const telefoneCliente = cliente.telefone.startsWith("+")
+        ? cliente.telefone
+        : `+55${cliente.telefone.replace(/\D/g, "")}`;
+
+      /* ✅ ATUALIZA CLIENTE (TIPO COMPLETO) */
       salvarCliente({
-        ...cliente!,
-        comprasComDesconto: cliente!.comprasComDesconto + 1,
+        id: cliente.id,
+        nome: cliente.nome,
+        telefone: telefoneCliente,
+        cadastrado: true,
+        comprasComDesconto: cliente.comprasComDesconto + 1,
       });
 
-      /* FIRESTORE */
+      /* ================= FIRESTORE ================= */
+
       await addDoc(collection(db, "pedidos"), {
         pedidoId,
         cliente: {
-          nome: cliente!.nome,
+          nome: cliente.nome,
           telefone: telefoneCliente,
         },
         endereco,
@@ -154,7 +152,8 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
-      /* WHATSAPP */
+      /* ================= WHATSAPP ================= */
+
       const itensTexto = carrinho
         .map(
           (i) =>
@@ -174,7 +173,7 @@ export default function CartModal() {
       const mensagem = `
 🍔 *NOVO PEDIDO*
 
-👤 ${cliente!.nome}
+👤 ${cliente.nome}
 📞 ${telefoneCliente}
 
 📍 *ENDEREÇO*
@@ -190,7 +189,7 @@ R$ ${totalFinal.toFixed(2)}
 💳 *PAGAMENTO*
 ${pagamentoTexto}
 
-🔎 *Acompanhe o seu pedido:*
+🔎 *Acompanhe seu pedido:*
 ${urlStatus}
       `.trim();
 
@@ -200,8 +199,8 @@ ${urlStatus}
 
       limparCarrinho();
       setCartOpen(false);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
@@ -235,8 +234,7 @@ ${urlStatus}
             <div>
               <p className="font-semibold">{item.nome}</p>
               <p className="text-sm text-zinc-400">
-                {item.qtd}x • R${" "}
-                {(item.preco * item.qtd).toFixed(2)}
+                {item.qtd}x • R$ {(item.preco * item.qtd).toFixed(2)}
               </p>
             </div>
           </div>
