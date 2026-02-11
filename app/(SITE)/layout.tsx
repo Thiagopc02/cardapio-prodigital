@@ -1,6 +1,8 @@
 import "../globals.css";
+
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+
 import Header from "@/components/Header";
 import FloatingCart from "@/components/FloatingCart";
 import CartModal from "@/components/CartModal";
@@ -16,21 +18,18 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className="bg-zinc-950 text-white">
-        <AuthProvider>
-          <CartProvider>
-            <Header />
-            {children}
+    <AuthProvider>
+      <CartProvider>
+        <Header />
 
-            {/* MODAL DO CARRINHO */}
-            <CartModal />
+        {children}
 
-            {/* BOTÃO FLUTUANTE */}
-            <FloatingCart />
-          </CartProvider>
-        </AuthProvider>
-      </body>
-    </html>
+        {/* Modal do carrinho */}
+        <CartModal />
+
+        {/* Botão flutuante do carrinho */}
+        <FloatingCart />
+      </CartProvider>
+    </AuthProvider>
   );
 }
