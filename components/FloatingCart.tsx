@@ -14,19 +14,18 @@ export default function FloatingCart() {
 
   return (
     <button
-      type="button"
       onClick={() => setCartOpen(true)}
-      aria-label="Abrir carrinho"
       className="
         fixed bottom-6 right-4
-        h-16 w-16
+        w-16 h-16
         bg-green-500
         rounded-full
         flex items-center justify-center
         text-black text-xl
         shadow-2xl
-        z-50
+        z-[9999]
       "
+      aria-label="Abrir carrinho"
     >
       🛒
 
@@ -36,7 +35,7 @@ export default function FloatingCart() {
             absolute -top-1 -right-1
             bg-red-500 text-white
             text-xs font-bold
-            h-6 w-6
+            w-6 h-6
             rounded-full
             flex items-center justify-center
           "

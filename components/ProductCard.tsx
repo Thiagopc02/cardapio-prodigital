@@ -13,6 +13,7 @@ function ProductCardComponent({ produto }: Props) {
   const { adicionarProduto, removerProduto, getQuantidade } = useCart();
   const qtd = getQuantidade(produto.id);
 
+  // 🔒 GARANTE imagem válida
   const imagemValida =
     produto.imagem && produto.imagem.startsWith("/")
       ? produto.imagem
@@ -26,7 +27,7 @@ function ProductCardComponent({ produto }: Props) {
         width={60}
         height={60}
         className="rounded-lg object-cover"
-        priority={false}
+        unoptimized
       />
 
       <div className="flex-1">
@@ -38,10 +39,9 @@ function ProductCardComponent({ produto }: Props) {
 
       <div className="flex items-center gap-2">
         <button
-          onClick={() => qtd > 0 && removerProduto(produto.id)}
+          onClick={() => removerProduto(produto.id)}
           disabled={qtd === 0}
           className="bg-zinc-700 px-2 rounded disabled:opacity-40"
-          aria-label="Remover produto"
         >
           −
         </button>
