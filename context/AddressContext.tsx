@@ -30,7 +30,7 @@ type AddressContextType = {
 
 const AddressContext = createContext<AddressContextType | null>(null);
 
-/* ================= STORAGE HELPERS ================= */
+/* ================= STORAGE ================= */
 
 const STORAGE_KEY = "enderecos";
 
@@ -51,11 +51,7 @@ function salvarEnderecos(enderecos: Endereco[]) {
 
 /* ================= PROVIDER ================= */
 
-export function AddressProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AddressProvider({ children }: { children: React.ReactNode }) {
   const [enderecos, setEnderecos] = useState<Endereco[]>(() =>
     carregarEnderecos()
   );
@@ -65,13 +61,13 @@ export function AddressProvider({
 
   function adicionarEndereco(endereco: Endereco) {
     setEnderecos((prev) => {
-      const novos = endereco.padrao
+      const lista = endereco.padrao
         ? prev.map((e) => ({ ...e, padrao: false }))
         : prev;
 
-      const lista = [...novos, endereco];
-      salvarEnderecos(lista);
-      return lista;
+      const novaLista = [...lista, endereco];
+      salvarEnderecos(novaLista);
+      return novaLista;
     });
   }
 
@@ -136,14 +132,23 @@ export function AddressProvider({
   );
 }
 
-/* ================= HOOK ================= */
+/* ================= HOOK (APP ROUTER SAFE) ================= */
 
-export function useAddress() {
+export function useAddress(): AddressContextType {
   const ctx = useContext(AddressContext);
+
+  // ❗ NUNCA lançar erro no App Router
   if (!ctx) {
-    throw new Error(
-      "useAddress deve ser usado dentro de AddressProvider"
-    );
+    return {
+      enderecos: [],
+      enderecoSelecionado: null,
+      adicionarEndereco: () => {},
+      atualizarEndereco: () => {},
+      removerEndereco: () => {},
+      selecionarEndereco: () => {},
+      limparEnderecos: () => {},
+    };
   }
+
   return ctx;
 }

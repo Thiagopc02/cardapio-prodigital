@@ -1,14 +1,10 @@
 // app/layout.tsx
 import "./globals.css";
 
-import { ClientProvider } from "@/context/ClientContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ClientProvider } from "@/context/ClientContext";
 import { CartProvider } from "@/context/CartContext";
-
-export const metadata = {
-  title: "Cardápio Pro Digital",
-  description: "Peça pelo WhatsApp sem erro",
-};
+import { AddressProvider } from "@/context/AddressContext";
 
 export default function RootLayout({
   children,
@@ -18,11 +14,13 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-zinc-950 text-white">
-        <ClientProvider>
-          <AuthProvider>
-            <CartProvider>{children}</CartProvider>
-          </AuthProvider>
-        </ClientProvider>
+        <AuthProvider>
+          <ClientProvider>
+            <AddressProvider>
+              <CartProvider>{children}</CartProvider>
+            </AddressProvider>
+          </ClientProvider>
+        </AuthProvider>
       </body>
     </html>
   );
