@@ -25,11 +25,12 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  /* 🔴 TODOS OS HOOKS SEMPRE NO TOPO */
+  // ✅ TODOS OS HOOKS NO TOPO (sem exceção)
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
 
   const [loading, setLoading] = useState(false);
+  const [formaPagamento] = useState<FormaPagamento>("pix");
 
   const [endereco, setEndereco] = useState<Endereco>({
     cep: "",
@@ -40,8 +41,6 @@ export default function CartModal() {
     cidade: "",
     uf: "",
   });
-
-  const [formaPagamento] = useState<FormaPagamento>("pix");
 
   /* ================= BUSCAR CEP ================= */
 
@@ -60,16 +59,18 @@ export default function CartModal() {
             uf: data.uf || "",
           }));
         }
-      });
+      })
+      .catch(() => {});
   }, [endereco.cep]);
 
-  /* ✅ RETURN CONDICIONAL SÓ DEPOIS DOS HOOKS */
+  /* ================= EARLY RETURN (APÓS HOOKS) ================= */
+
   if (!cartOpen) return null;
 
   /* ================= DESCONTO ================= */
 
   const temDesconto =
-    cliente?.cadastrado && cliente.comprasComDesconto < 2;
+    !!cliente && cliente.cadastrado && cliente.comprasComDesconto < 2;
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
@@ -94,9 +95,8 @@ export default function CartModal() {
   /* ================= FINALIZAR PEDIDO ================= */
 
   async function enviarPedidoWhatsApp() {
-    if (loading) return;
+    if (loading || !cliente) return;
     if (!validarPedido()) return;
-    if (!cliente) return;
 
     try {
       setLoading(true);
@@ -107,7 +107,7 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      // 🔄 Atualiza cliente (controle de desconto)
+      // 🔄 Atualiza cliente no contexto
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
@@ -129,9 +129,7 @@ export default function CartModal() {
           quantidade: item.qtd,
         })),
         total: totalFinal,
-        pagamento: {
-          tipo: formaPagamento,
-        },
+        pagamento: { tipo: formaPagamento },
         status: "novo",
         createdAt: serverTimestamp(),
       });
@@ -171,8 +169,8 @@ ${urlStatus}
 
       limparCarrinho();
       setCartOpen(false);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
@@ -195,9 +193,7 @@ ${urlStatus}
           <div className="bg-zinc-800 p-3 rounded-xl mb-4">
             <p className="text-xs text-zinc-400 mb-1">Cliente</p>
             <p className="font-semibold">{cliente.nome}</p>
-            <p className="text-sm text-zinc-300">
-              📞 {cliente.telefone}
-            </p>
+            <p className="text-sm text-zinc-300">📞 {cliente.telefone}</p>
           </div>
         )}
 
