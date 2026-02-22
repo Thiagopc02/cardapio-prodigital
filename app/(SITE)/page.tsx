@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
@@ -57,6 +57,20 @@ export default function Home() {
     carregarProdutos();
   }, []);
 
+  // 🔥 AGRUPA PRODUTOS UMA ÚNICA VEZ
+  const produtosPorCategoria = useMemo(() => {
+    const map: Record<string, Produto[]> = {};
+
+    for (const produto of produtos) {
+      if (!map[produto.categoria]) {
+        map[produto.categoria] = [];
+      }
+      map[produto.categoria].push(produto);
+    }
+
+    return map;
+  }, [produtos]);
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
       <main className="flex-1 px-4 pb-32 max-w-md mx-auto space-y-4">
@@ -73,7 +87,6 @@ export default function Home() {
                   boas compras 😎
                 </div>
 
-                {/* 🔴 STATUS DO PEDIDO */}
                 <button
                   onClick={() => router.push("/status")}
                   className="mt-1 text-xs text-red-400 font-bold flex items-center gap-1 hover:underline"
@@ -117,17 +130,14 @@ export default function Home() {
 
         {!loading &&
           ORDEM_CATEGORIAS.map((categoria) => {
-            const produtosCategoria = produtos.filter(
-              (p) => p.categoria === categoria
-            );
-
-            if (produtosCategoria.length === 0) return null;
+            const lista = produtosPorCategoria[categoria];
+            if (!lista || lista.length === 0) return null;
 
             return (
               <CategorySection
                 key={categoria}
                 categoria={CATEGORIAS_LABELS[categoria]}
-                produtos={produtosCategoria}
+                produtos={lista}
               />
             );
           })}
