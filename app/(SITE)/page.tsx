@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 
 import Footer from "@/components/Footer";
 import CategorySection from "@/components/CategorySection";
@@ -32,6 +33,7 @@ const ORDEM_CATEGORIAS = [
 export default function Home() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { cartOpen } = useCart();
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,17 +59,14 @@ export default function Home() {
     carregarProdutos();
   }, []);
 
-  // 🔥 AGRUPA PRODUTOS UMA ÚNICA VEZ
   const produtosPorCategoria = useMemo(() => {
     const map: Record<string, Produto[]> = {};
-
     for (const produto of produtos) {
       if (!map[produto.categoria]) {
         map[produto.categoria] = [];
       }
       map[produto.categoria].push(produto);
     }
-
     return map;
   }, [produtos]);
 
@@ -80,9 +79,7 @@ export default function Home() {
           <div className="bg-zinc-950 border border-green-500/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
             {user ? (
               <div className="text-green-400 text-sm font-semibold">
-                👋 Olá,{" "}
-                <b>{user.displayName || user.email}</b>
-
+                👋 Olá, <b>{user.displayName || user.email}</b>
                 <div className="text-xs text-green-300">
                   boas compras 😎
                 </div>
@@ -145,7 +142,7 @@ export default function Home() {
 
       {/* ================= FIXOS ================= */}
       <FloatingCart />
-      <CartModal />
+      {cartOpen && <CartModal />}
       <Footer />
     </div>
   );

@@ -16,15 +16,12 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  /* ================= HOOKS (sempre no topo) ================= */
-
-  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
+  const { carrinho, total, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
   const {
     enderecos,
     enderecoSelecionado,
     selecionarEndereco,
-    adicionarEndereco,
   } = useAddress();
 
   const [loading, setLoading] = useState(false);
@@ -39,8 +36,6 @@ export default function CartModal() {
     cidade: "",
     uf: "",
   });
-
-  /* ================= BUSCAR CEP ================= */
 
   useEffect(() => {
     if (novoEndereco.cep.length !== 8) return;
@@ -60,18 +55,10 @@ export default function CartModal() {
       });
   }, [novoEndereco.cep]);
 
-  /* ================= PROTEÇÃO ================= */
-
-  if (!cartOpen) return null;
-
-  /* ================= DESCONTO ================= */
-
   const temDesconto =
     cliente?.cadastrado && cliente.comprasComDesconto < 2;
 
   const totalFinal = temDesconto ? total * 0.95 : total;
-
-  /* ================= FINALIZAR PEDIDO ================= */
 
   async function finalizarPedido() {
     if (!cliente || !enderecoSelecionado || loading) {
@@ -82,13 +69,10 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const pedidoId = crypto.randomUUID();
-
       const telefoneCliente = cliente.telefone.startsWith("+")
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      // Atualiza cliente (controle de desconto)
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
@@ -96,7 +80,6 @@ export default function CartModal() {
       });
 
       await addDoc(collection(db, "pedidos"), {
-        pedidoId,
         cliente: {
           id: cliente.id,
           nome: cliente.nome,
@@ -125,8 +108,6 @@ export default function CartModal() {
     }
   }
 
-  /* ================= UI ================= */
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
@@ -136,8 +117,6 @@ export default function CartModal() {
 
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
-
-        {/* ================= ITENS ================= */}
 
         {carrinho.map((item) => (
           <div
@@ -159,8 +138,6 @@ export default function CartModal() {
             </div>
           </div>
         ))}
-
-        {/* ================= ENDEREÇOS ================= */}
 
         <div className="mt-4">
           <p className="font-semibold mb-2">📍 Endereço de entrega</p>
@@ -185,8 +162,6 @@ export default function CartModal() {
           ))}
         </div>
 
-        {/* ================= TOTAL ================= */}
-
         <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
           <div className="flex justify-between text-sm text-zinc-400">
             <span>Subtotal</span>
@@ -205,8 +180,6 @@ export default function CartModal() {
             <span>R$ {totalFinal.toFixed(2)}</span>
           </div>
         </div>
-
-        {/* ================= AÇÃO ================= */}
 
         {!cliente ? (
           <div className="mt-4 bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-xl text-sm">
