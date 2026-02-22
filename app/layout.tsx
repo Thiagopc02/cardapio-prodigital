@@ -1,6 +1,9 @@
 // app/layout.tsx
-
 import "./globals.css";
+
+import { AuthProvider } from "@/context/AuthContext";
+import { ClientProvider } from "@/context/ClientContext";
+import { CartProvider } from "@/context/CartContext";
 
 export const metadata = {
   title: "Cardápio Pro Digital",
@@ -15,7 +18,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-zinc-950 text-white">
-        {children}
+        <AuthProvider>
+          <ClientProvider>
+            <CartProvider>{children}</CartProvider>
+          </ClientProvider>
+        </AuthProvider>
       </body>
     </html>
   );

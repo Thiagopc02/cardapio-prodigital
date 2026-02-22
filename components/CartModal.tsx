@@ -6,7 +6,7 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
-import { obterCliente, salvarCliente } from "@/utils/clienteStorage";
+import { useCliente } from "@/context/ClientContext";
 
 /* ================= TIPOS ================= */
 
@@ -26,9 +26,7 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
-
-  const cliente =
-    typeof window !== "undefined" ? obterCliente() : null;
+  const { cliente, setCliente } = useCliente();
 
   const [loading, setLoading] = useState(false);
 
@@ -43,7 +41,6 @@ export default function CartModal() {
   });
 
   const [formaPagamento] = useState<FormaPagamento>("pix");
-  const [trocoPara] = useState("");
 
   /* ================= BUSCAR CEP ================= */
 
@@ -108,17 +105,17 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      salvarCliente({
-        id: cliente.id,
-        nome: cliente.nome,
+      // 🔄 atualiza cliente (desconto)
+      setCliente({
+        ...cliente,
         telefone: telefoneCliente,
-        cadastrado: true,
         comprasComDesconto: cliente.comprasComDesconto + 1,
       });
 
       await addDoc(collection(db, "pedidos"), {
         pedidoId,
         cliente: {
+          id: cliente.id,
           nome: cliente.nome,
           telefone: telefoneCliente,
         },
@@ -132,7 +129,6 @@ export default function CartModal() {
         total: totalFinal,
         pagamento: {
           tipo: formaPagamento,
-          trocoPara: null,
         },
         status: "novo",
         createdAt: serverTimestamp(),
