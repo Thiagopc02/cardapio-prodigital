@@ -25,6 +25,7 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
+  /* 🔴 TODOS OS HOOKS SEMPRE NO TOPO */
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
 
@@ -62,6 +63,7 @@ export default function CartModal() {
       });
   }, [endereco.cep]);
 
+  /* ✅ RETURN CONDICIONAL SÓ DEPOIS DOS HOOKS */
   if (!cartOpen) return null;
 
   /* ================= DESCONTO ================= */
@@ -105,7 +107,7 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      // 🔄 atualiza cliente (desconto)
+      // 🔄 Atualiza cliente (controle de desconto)
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
