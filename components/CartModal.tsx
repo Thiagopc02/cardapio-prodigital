@@ -42,10 +42,8 @@ export default function CartModal() {
     uf: "",
   });
 
-  const [formaPagamento, setFormaPagamento] =
-    useState<FormaPagamento>("pix");
-
-  const [trocoPara, setTrocoPara] = useState("");
+  const [formaPagamento] = useState<FormaPagamento>("pix");
+  const [trocoPara] = useState("");
 
   /* ================= BUSCAR CEP ================= */
 
@@ -79,10 +77,7 @@ export default function CartModal() {
   /* ================= VALIDAR ================= */
 
   function validarPedido() {
-    if (!cliente) {
-      alert("Cliente não identificado.");
-      return false;
-    }
+    if (!cliente) return false;
 
     if (
       !endereco.cep ||
@@ -91,11 +86,6 @@ export default function CartModal() {
       !endereco.bairro
     ) {
       alert("Preencha todos os dados do endereço.");
-      return false;
-    }
-
-    if (formaPagamento === "dinheiro" && !trocoPara) {
-      alert("Informe o valor do troco.");
       return false;
     }
 
@@ -118,7 +108,6 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      /* ✅ ATUALIZA CLIENTE (TIPO COMPLETO) */
       salvarCliente({
         id: cliente.id,
         nome: cliente.nome,
@@ -126,8 +115,6 @@ export default function CartModal() {
         cadastrado: true,
         comprasComDesconto: cliente.comprasComDesconto + 1,
       });
-
-      /* ================= FIRESTORE ================= */
 
       await addDoc(collection(db, "pedidos"), {
         pedidoId,
@@ -145,14 +132,11 @@ export default function CartModal() {
         total: totalFinal,
         pagamento: {
           tipo: formaPagamento,
-          trocoPara:
-            formaPagamento === "dinheiro" ? trocoPara : null,
+          trocoPara: null,
         },
         status: "novo",
         createdAt: serverTimestamp(),
       });
-
-      /* ================= WHATSAPP ================= */
 
       const itensTexto = carrinho
         .map(
@@ -160,13 +144,6 @@ export default function CartModal() {
             `• ${i.qtd}x ${i.nome} — R$ ${(i.preco * i.qtd).toFixed(2)}`
         )
         .join("\n");
-
-      const pagamentoTexto =
-        formaPagamento === "dinheiro"
-          ? `Dinheiro (troco para ${trocoPara})`
-          : formaPagamento === "pix"
-          ? "Pix"
-          : "Cartão";
 
       const urlStatus = `https://cardapio-prodigital.vercel.app/status?id=${pedidoId}`;
 
@@ -185,9 +162,6 @@ ${itensTexto}
 
 💰 *TOTAL*
 R$ ${totalFinal.toFixed(2)}
-
-💳 *PAGAMENTO*
-${pagamentoTexto}
 
 🔎 *Acompanhe seu pedido:*
 ${urlStatus}
@@ -210,7 +184,7 @@ ${urlStatus}
   /* ================= UI ================= */
 
   return (
-    <div className="fixed inset-0 z-9998 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
@@ -218,6 +192,16 @@ ${urlStatus}
 
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
+
+        {cliente && (
+          <div className="bg-zinc-800 p-3 rounded-xl mb-4">
+            <p className="text-xs text-zinc-400 mb-1">Cliente</p>
+            <p className="font-semibold">{cliente.nome}</p>
+            <p className="text-sm text-zinc-300">
+              📞 {cliente.telefone}
+            </p>
+          </div>
+        )}
 
         {carrinho.map((item) => (
           <div
@@ -240,13 +224,38 @@ ${urlStatus}
           </div>
         ))}
 
-        <button
-          disabled={loading}
-          onClick={enviarPedidoWhatsApp}
-          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold"
-        >
-          🚚 Finalizar pedido
-        </button>
+        <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
+          <div className="flex justify-between text-sm text-zinc-400">
+            <span>Subtotal</span>
+            <span>R$ {total.toFixed(2)}</span>
+          </div>
+
+          {temDesconto && (
+            <div className="flex justify-between text-sm text-green-400">
+              <span>Desconto</span>
+              <span>-5%</span>
+            </div>
+          )}
+
+          <div className="flex justify-between font-bold text-lg mt-2">
+            <span>Total</span>
+            <span>R$ {totalFinal.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {!cliente ? (
+          <div className="mt-4 bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-xl text-sm">
+            ⚠️ Identifique-se para finalizar o pedido.
+          </div>
+        ) : (
+          <button
+            disabled={loading}
+            onClick={enviarPedidoWhatsApp}
+            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold"
+          >
+            🚚 Finalizar pedido
+          </button>
+        )}
       </div>
     </div>
   );
