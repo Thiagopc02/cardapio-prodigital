@@ -25,8 +25,12 @@ const ClientContext = createContext<ClientContextType | null>(null);
 
 /* ================= PROVIDER ================= */
 
-export function ClientProvider({ children }: { children: React.ReactNode }) {
-  // ✅ estado inicial vindo direto do storage (sem useEffect)
+export function ClientProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // ✅ inicialização SSR-safe
   const [cliente, setClienteState] = useState<Cliente | null>(() => {
     if (typeof window === "undefined") return null;
     return obterCliente();
@@ -38,7 +42,9 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   }
 
   function limparCliente() {
-    localStorage.removeItem("cliente");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("cliente");
+    }
     setClienteState(null);
   }
 
@@ -49,12 +55,19 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ================= HOOK ================= */
+/* ================= HOOK (SSR SAFE) ================= */
 
-export function useCliente() {
+export function useCliente(): ClientContextType {
   const ctx = useContext(ClientContext);
+
+  // ⚠️ NUNCA lançar erro no App Router (quebra build)
   if (!ctx) {
-    throw new Error("useCliente deve ser usado dentro de ClientProvider");
+    return {
+      cliente: null,
+      setCliente: () => {},
+      limparCliente: () => {},
+    };
   }
+
   return ctx;
 }
