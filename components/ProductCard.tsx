@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { memo } from "react";
 import { Produto } from "@/types/Produto";
 import { useCart } from "@/context/CartContext";
 
@@ -8,7 +9,7 @@ type Props = {
   produto: Produto;
 };
 
-export default function ProductCard({ produto }: Props) {
+function ProductCardComponent({ produto }: Props) {
   const { adicionarProduto, removerProduto, getQuantidade } = useCart();
   const qtd = getQuantidade(produto.id);
 
@@ -49,3 +50,5 @@ export default function ProductCard({ produto }: Props) {
     </div>
   );
 }
+
+export default memo(ProductCardComponent);
