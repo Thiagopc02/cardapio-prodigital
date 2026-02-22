@@ -7,32 +7,30 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
 import { useCliente } from "@/context/ClientContext";
+import { useAddress } from "@/context/AddressContext";
 
 /* ================= TIPOS ================= */
-
-type Endereco = {
-  cep: string;
-  rua: string;
-  numero: string;
-  bairro: string;
-  complemento?: string;
-  cidade: string;
-  uf: string;
-};
 
 type FormaPagamento = "dinheiro" | "pix" | "cartao";
 
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  // ✅ TODOS OS HOOKS NO TOPO (sem exceção)
+  /* ================= HOOKS (sempre no topo) ================= */
+
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
+  const {
+    enderecos,
+    enderecoSelecionado,
+    selecionarEndereco,
+    adicionarEndereco,
+  } = useAddress();
 
   const [loading, setLoading] = useState(false);
   const [formaPagamento] = useState<FormaPagamento>("pix");
 
-  const [endereco, setEndereco] = useState<Endereco>({
+  const [novoEndereco, setNovoEndereco] = useState({
     cep: "",
     rua: "",
     numero: "",
@@ -45,13 +43,13 @@ export default function CartModal() {
   /* ================= BUSCAR CEP ================= */
 
   useEffect(() => {
-    if (endereco.cep.length !== 8) return;
+    if (novoEndereco.cep.length !== 8) return;
 
-    fetch(`https://viacep.com.br/ws/${endereco.cep}/json/`)
+    fetch(`https://viacep.com.br/ws/${novoEndereco.cep}/json/`)
       .then((res) => res.json())
       .then((data) => {
         if (!data.erro) {
-          setEndereco((prev) => ({
+          setNovoEndereco((prev) => ({
             ...prev,
             rua: data.logradouro || "",
             bairro: data.bairro || "",
@@ -59,44 +57,27 @@ export default function CartModal() {
             uf: data.uf || "",
           }));
         }
-      })
-      .catch(() => {});
-  }, [endereco.cep]);
+      });
+  }, [novoEndereco.cep]);
 
-  /* ================= EARLY RETURN (APÓS HOOKS) ================= */
+  /* ================= PROTEÇÃO ================= */
 
   if (!cartOpen) return null;
 
   /* ================= DESCONTO ================= */
 
   const temDesconto =
-    !!cliente && cliente.cadastrado && cliente.comprasComDesconto < 2;
+    cliente?.cadastrado && cliente.comprasComDesconto < 2;
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= VALIDAR ================= */
-
-  function validarPedido() {
-    if (!cliente) return false;
-
-    if (
-      !endereco.cep ||
-      !endereco.rua ||
-      !endereco.numero ||
-      !endereco.bairro
-    ) {
-      alert("Preencha todos os dados do endereço.");
-      return false;
-    }
-
-    return true;
-  }
-
   /* ================= FINALIZAR PEDIDO ================= */
 
-  async function enviarPedidoWhatsApp() {
-    if (loading || !cliente) return;
-    if (!validarPedido()) return;
+  async function finalizarPedido() {
+    if (!cliente || !enderecoSelecionado || loading) {
+      alert("Selecione um endereço para entrega.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -107,7 +88,7 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      // 🔄 Atualiza cliente no contexto
+      // Atualiza cliente (controle de desconto)
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
@@ -121,7 +102,7 @@ export default function CartModal() {
           nome: cliente.nome,
           telefone: telefoneCliente,
         },
-        endereco,
+        endereco: enderecoSelecionado,
         itens: carrinho.map((item) => ({
           id: item.id,
           nome: item.nome,
@@ -134,43 +115,10 @@ export default function CartModal() {
         createdAt: serverTimestamp(),
       });
 
-      const itensTexto = carrinho
-        .map(
-          (i) =>
-            `• ${i.qtd}x ${i.nome} — R$ ${(i.preco * i.qtd).toFixed(2)}`
-        )
-        .join("\n");
-
-      const urlStatus = `https://cardapio-prodigital.vercel.app/status?id=${pedidoId}`;
-
-      const mensagem = `
-🍔 *NOVO PEDIDO*
-
-👤 ${cliente.nome}
-📞 ${telefoneCliente}
-
-📍 *ENDEREÇO*
-${endereco.rua}, Nº ${endereco.numero}
-${endereco.bairro} - ${endereco.cidade}/${endereco.uf}
-
-🛒 *ITENS*
-${itensTexto}
-
-💰 *TOTAL*
-R$ ${totalFinal.toFixed(2)}
-
-🔎 *Acompanhe seu pedido:*
-${urlStatus}
-      `.trim();
-
-      window.location.href = `https://wa.me/5562994524744?text=${encodeURIComponent(
-        mensagem
-      )}`;
-
       limparCarrinho();
       setCartOpen(false);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
@@ -189,13 +137,7 @@ ${urlStatus}
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
 
-        {cliente && (
-          <div className="bg-zinc-800 p-3 rounded-xl mb-4">
-            <p className="text-xs text-zinc-400 mb-1">Cliente</p>
-            <p className="font-semibold">{cliente.nome}</p>
-            <p className="text-sm text-zinc-300">📞 {cliente.telefone}</p>
-          </div>
-        )}
+        {/* ================= ITENS ================= */}
 
         {carrinho.map((item) => (
           <div
@@ -218,6 +160,33 @@ ${urlStatus}
           </div>
         ))}
 
+        {/* ================= ENDEREÇOS ================= */}
+
+        <div className="mt-4">
+          <p className="font-semibold mb-2">📍 Endereço de entrega</p>
+
+          {enderecos.map((end) => (
+            <button
+              key={end.id}
+              onClick={() => selecionarEndereco(end.id)}
+              className={`w-full text-left p-3 mb-2 rounded-xl border ${
+                enderecoSelecionado?.id === end.id
+                  ? "border-green-500 bg-green-500/10"
+                  : "border-zinc-700 bg-zinc-800"
+              }`}
+            >
+              <p className="text-sm">
+                {end.rua}, Nº {end.numero}
+              </p>
+              <p className="text-xs text-zinc-400">
+                {end.bairro} - {end.cidade}/{end.uf}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        {/* ================= TOTAL ================= */}
+
         <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
           <div className="flex justify-between text-sm text-zinc-400">
             <span>Subtotal</span>
@@ -237,6 +206,8 @@ ${urlStatus}
           </div>
         </div>
 
+        {/* ================= AÇÃO ================= */}
+
         {!cliente ? (
           <div className="mt-4 bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-xl text-sm">
             ⚠️ Identifique-se para finalizar o pedido.
@@ -244,7 +215,7 @@ ${urlStatus}
         ) : (
           <button
             disabled={loading}
-            onClick={enviarPedidoWhatsApp}
+            onClick={finalizarPedido}
             className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold"
           >
             🚚 Finalizar pedido

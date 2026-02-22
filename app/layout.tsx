@@ -1,8 +1,8 @@
 // app/layout.tsx
 import "./globals.css";
 
-import { AuthProvider } from "@/context/AuthContext";
 import { ClientProvider } from "@/context/ClientContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 
 export const metadata = {
@@ -18,11 +18,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className="bg-zinc-950 text-white">
-        <AuthProvider>
-          <ClientProvider>
+        <ClientProvider>
+          <AuthProvider>
             <CartProvider>{children}</CartProvider>
-          </ClientProvider>
-        </AuthProvider>
+          </AuthProvider>
+        </ClientProvider>
       </body>
     </html>
   );
