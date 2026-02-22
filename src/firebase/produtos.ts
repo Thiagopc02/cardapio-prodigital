@@ -14,8 +14,8 @@ import { db } from "./config";
 export type Produto = {
   id: string;
   nome: string;
-  preco: number;
-  categoria: string; // ✅ PADRÃO FINAL
+  preco: number;      // 🔥 SEMPRE number
+  categoria: string;
   imagem: string;
   ativo: boolean;
 };
@@ -23,6 +23,20 @@ export type Produto = {
 /* ================= COLLECTION ================= */
 
 const produtosRef = collection(db, "produtos");
+
+/* ================= HELPERS ================= */
+
+function normalizarCategoria(valor: unknown): string {
+  return String(valor ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function converterPreco(valor: unknown): number {
+  const n = Number(valor);
+  return Number.isFinite(n) ? n : 0;
+}
 
 /* ================= ADMIN ================= */
 
@@ -34,15 +48,11 @@ export async function getProdutos(): Promise<Produto[]> {
 
     return {
       id: d.id,
-      nome: data.nome,
-      preco: data.preco,
-      imagem: data.imagem,
-      ativo: data.ativo,
-      // 🔥 NORMALIZAÇÃO
-      categoria: String(data.categoria ?? data.tipo ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, ""),
+      nome: String(data.nome ?? ""),
+      preco: converterPreco(data.preco), // 🔥 AQUI
+      imagem: String(data.imagem ?? ""),
+      ativo: Boolean(data.ativo),
+      categoria: normalizarCategoria(data.categoria ?? data.tipo),
     };
   });
 }
@@ -66,15 +76,11 @@ export async function getProdutosAtivos(): Promise<Produto[]> {
 
     return {
       id: d.id,
-      nome: data.nome,
-      preco: data.preco,
-      imagem: data.imagem,
-      ativo: data.ativo,
-      // 🔥 CONVERSÃO DEFINITIVA
-      categoria: String(data.categoria ?? data.tipo ?? "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, ""),
+      nome: String(data.nome ?? ""),
+      preco: converterPreco(data.preco), // 🔥 AQUI TAMBÉM
+      imagem: String(data.imagem ?? ""),
+      ativo: Boolean(data.ativo),
+      categoria: normalizarCategoria(data.categoria ?? data.tipo),
     };
   });
 }
