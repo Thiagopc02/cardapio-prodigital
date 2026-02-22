@@ -24,10 +24,10 @@ export default function PublicLayout({
 
         {children}
 
-        {/* Modal do carrinho */}
+        {/* Modal do carrinho (sempre montado, controlado internamente) */}
         <CartModal />
 
-        {/* Botão flutuante do carrinho */}
+        {/* Botão flutuante */}
         <FloatingCart />
       </CartProvider>
     </AuthProvider>
