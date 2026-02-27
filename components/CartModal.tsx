@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
@@ -16,6 +16,7 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
+  /* ================= CONTEXTOS ================= */
   const {
     carrinho,
     total,
@@ -25,61 +26,36 @@ export default function CartModal() {
   } = useCart();
 
   const { cliente, setCliente } = useCliente();
-  const {
-    enderecos,
-    enderecoSelecionado,
-    selecionarEndereco,
-  } = useAddress();
+  const { enderecoSelecionado } = useAddress();
 
+  /* ================= STATE ================= */
   const [loading, setLoading] = useState(false);
   const [formaPagamento] = useState<FormaPagamento>("pix");
 
-  const [novoEndereco, setNovoEndereco] = useState({
-    cep: "",
-    rua: "",
-    numero: "",
-    bairro: "",
-    complemento: "",
-    cidade: "",
-    uf: "",
-  });
-
-  /* ================= BUSCA CEP ================= */
-  useEffect(() => {
-    if (novoEndereco.cep.length !== 8) return;
-
-    fetch(`https://viacep.com.br/ws/${novoEndereco.cep}/json/`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.erro) {
-          setNovoEndereco((prev) => ({
-            ...prev,
-            rua: data.logradouro || "",
-            bairro: data.bairro || "",
-            cidade: data.localidade || "",
-            uf: data.uf || "",
-          }));
-        }
-      });
-  }, [novoEndereco.cep]);
-
-  /* ================= TRAVA CORRETA ================= */
-  if (!cartOpen) return null;
-
-  /* ================= DESCONTO ================= */
-
+  /* ================= REGRAS ================= */
   const temDesconto =
-    cliente?.cadastrado && cliente.comprasComDesconto < 2;
+    !!cliente &&
+    typeof cliente.comprasComDesconto === "number" &&
+    cliente.comprasComDesconto < 2;
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= FINALIZAR ================= */
+  /* ================= GUARD ================= */
+  if (!cartOpen) return null;
 
+  /* ================= FINALIZAR ================= */
   async function finalizarPedido() {
-    if (!cliente || !enderecoSelecionado || loading) {
+    if (!cliente) {
+      alert("Identifique-se para finalizar o pedido.");
+      return;
+    }
+
+    if (!enderecoSelecionado) {
       alert("Selecione um endereço para entrega.");
       return;
     }
+
+    if (loading) return;
 
     try {
       setLoading(true);
@@ -88,10 +64,14 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
+      // Atualiza cliente SEM função (evita erro de tipagem)
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
-        comprasComDesconto: cliente.comprasComDesconto + 1,
+        comprasComDesconto:
+          typeof cliente.comprasComDesconto === "number"
+            ? cliente.comprasComDesconto + 1
+            : 1,
       });
 
       await addDoc(collection(db, "pedidos"), {

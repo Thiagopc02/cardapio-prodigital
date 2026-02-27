@@ -11,18 +11,22 @@ type Props = {
 
 function ProductCardComponent({ produto }: Props) {
   const { adicionarProduto, removerProduto, getQuantidade } = useCart();
+
+  // 🔒 Proteção extra
+  if (!produto || !produto.id) return null;
+
   const qtd = getQuantidade(produto.id);
 
-  // 🔒 GARANTE imagem válida
-  const imagemValida =
+  // 🔒 Imagem 100% segura (sem 404)
+  const imagemSegura =
     produto.imagem && produto.imagem.startsWith("/")
       ? produto.imagem
-      : "/produtos/placeholder.png";
+      : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='100%' height='100%' fill='%23333333'/><text x='50%' y='50%' fill='%23999999' font-size='10' text-anchor='middle' dominant-baseline='middle'>SEM IMAGEM</text></svg>";
 
   return (
     <div className="bg-zinc-800 rounded-xl p-3 flex gap-3 items-center">
       <Image
-        src={imagemValida}
+        src={imagemSegura}
         alt={produto.nome}
         width={60}
         height={60}
@@ -39,6 +43,7 @@ function ProductCardComponent({ produto }: Props) {
 
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={() => removerProduto(produto.id)}
           disabled={qtd === 0}
           className="bg-zinc-700 px-2 rounded disabled:opacity-40"
@@ -49,6 +54,7 @@ function ProductCardComponent({ produto }: Props) {
         <span className="min-w-4 text-center">{qtd}</span>
 
         <button
+          type="button"
           onClick={() => adicionarProduto(produto)}
           className="bg-green-500 text-black px-2 rounded"
           aria-label="Adicionar produto"
