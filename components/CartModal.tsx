@@ -29,7 +29,7 @@ export default function CartModal() {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔑 CORREÇÃO MOBILE (iPhone)
+  // 🔑 iPhone-safe
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
     !enderecoSelecionado
   );
@@ -103,43 +103,37 @@ ${itensTexto}
 
   /* ================= MÁSCARAS ================= */
 
-  function mascaraCep(valor: string) {
-    return valor
+  function mascaraCep(v: string) {
+    return v
       .replace(/\D/g, "")
       .replace(/^(\d{5})(\d)/, "$1-$2")
       .slice(0, 9);
   }
 
-  function mascaraTelefone(valor: string) {
-    return valor
+  function mascaraTelefone(v: string) {
+    return v
       .replace(/\D/g, "")
       .replace(/^(\d{2})(\d)/, "($1) $2")
       .replace(/(\d{5})(\d)/, "$1-$2")
       .slice(0, 15);
   }
 
-  /* ================= BUSCA CEP ================= */
+  /* ================= CEP ================= */
 
   async function buscarCep(valor: string) {
-    const cepLimpo = valor.replace(/\D/g, "");
-
-    if (cepLimpo.length !== 8) return;
+    const limpo = valor.replace(/\D/g, "");
+    if (limpo.length !== 8) return;
 
     try {
-      const res = await fetch(
-        `https://viacep.com.br/ws/${cepLimpo}/json/`
-      );
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
       const data = await res.json();
-
       if (data.erro) return;
 
       setRua(data.logradouro || "");
       setBairro(data.bairro || "");
       setCidade(data.localidade || "");
       setUf(data.uf || "");
-    } catch (err) {
-      console.error("Erro ao buscar CEP", err);
-    }
+    } catch {}
   }
 
   /* ================= ENDEREÇO ================= */
@@ -221,9 +215,6 @@ ${itensTexto}
 
       limparCarrinho();
       setCartOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
     }
@@ -276,6 +267,36 @@ ${itensTexto}
             inputMode="numeric"
           />
         </div>
+
+        {/* ENDEREÇO SELECIONADO */}
+        {enderecoSelecionado && !mostrarFormEndereco && (
+          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3 space-y-2">
+            <p className="font-semibold">
+              {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
+            </p>
+            <p className="text-sm text-zinc-300">
+              {enderecoSelecionado.bairro} –{" "}
+              {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+            </p>
+
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="text-sm text-green-400 font-semibold"
+            >
+              ➕ Adicionar novo endereço
+            </button>
+
+            <button
+              onClick={() => {
+                removerEndereco(enderecoSelecionado.id);
+                setMostrarFormEndereco(true);
+              }}
+              className="text-sm text-red-400 font-semibold"
+            >
+              🗑 Excluir endereço
+            </button>
+          </div>
+        )}
 
         {/* FORM ENDEREÇO */}
         {mostrarFormEndereco && (
