@@ -23,7 +23,11 @@ export default function CartModal() {
   /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
-  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(false);
+
+  // 🔑 CORREÇÃO MOBILE (iPhone)
+  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
+    !enderecoSelecionado
+  );
 
   // Cliente
   const [nome, setNome] = useState(cliente?.nome || "");
@@ -51,9 +55,7 @@ export default function CartModal() {
   /* ================= HELPERS ================= */
 
   function formatarTelefone(tel: string) {
-    return tel.startsWith("+")
-      ? tel
-      : `+55${tel.replace(/\D/g, "")}`;
+    return tel.startsWith("+") ? tel : `+55${tel.replace(/\D/g, "")}`;
   }
 
   function enviarPedidoWhatsApp(pedidoId: string) {
@@ -125,7 +127,7 @@ ${itensTexto}
     }
 
     if (!enderecoSelecionado) {
-      alert("Selecione um endereço.");
+      alert("Informe o endereço de entrega.");
       return;
     }
 
@@ -224,6 +226,10 @@ ${itensTexto}
         </div>
 
         {/* ENDEREÇO */}
+        <h3 className="text-sm font-semibold text-zinc-300">
+          📍 Endereço de entrega
+        </h3>
+
         {enderecoSelecionado && !mostrarFormEndereco && (
           <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
             <p className="font-semibold">
@@ -271,16 +277,14 @@ ${itensTexto}
         )}
 
         {/* TOTAL */}
-        <div className="bg-zinc-800 p-3 rounded-xl">
-          <div className="flex justify-between font-bold">
-            <span>Total</span>
-            <span className="text-green-400">
-              R$ {totalFinal.toFixed(2)}
-            </span>
-          </div>
+        <div className="bg-zinc-800 p-3 rounded-xl flex justify-between font-bold">
+          <span>Total</span>
+          <span className="text-green-400">
+            R$ {totalFinal.toFixed(2)}
+          </span>
         </div>
 
-        {/* BOTÕES */}
+        {/* PAGAMENTOS */}
         <button
           onClick={() => finalizarPedido("entrega")}
           disabled={loading}
