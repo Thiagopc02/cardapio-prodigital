@@ -7,23 +7,16 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
 import { useCliente } from "@/context/ClientContext";
-import { useAddress, Endereco } from "@/context/AddressContext";
+import { useAddress } from "@/context/AddressContext";
 
 /* ================= TIPOS ================= */
 
-type FormaPagamento = "pix";
+type FormaPagamento = "pix" | "dinheiro" | "cartao";
 
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const {
-    carrinho,
-    total,
-    cartOpen,
-    setCartOpen,
-    limparCarrinho,
-  } = useCart();
-
+  const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
   const {
     enderecoSelecionado,
@@ -33,19 +26,19 @@ export default function CartModal() {
   /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
-  const [mostrarFormularioEndereco, setMostrarFormularioEndereco] =
-    useState(!enderecoSelecionado);
+  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(false);
 
+  // Cliente
+  const [nome, setNome] = useState(cliente?.nome || "");
+  const [telefone, setTelefone] = useState(cliente?.telefone || "");
+
+  // Endereço
   const [cep, setCep] = useState("");
   const [rua, setRua] = useState("");
   const [numero, setNumero] = useState("");
   const [bairro, setBairro] = useState("");
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
-
-  const formaPagamento: FormaPagamento = "pix";
-
-  /* ================= REGRAS ================= */
 
   const temDesconto =
     !!cliente &&
@@ -56,7 +49,7 @@ export default function CartModal() {
 
   if (!cartOpen) return null;
 
-  /* ================= ENDEREÇO ================= */
+  /* ================= SALVAR ENDEREÇO ================= */
 
   function salvarEndereco() {
     if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
@@ -64,8 +57,8 @@ export default function CartModal() {
       return;
     }
 
-    const novoEndereco: Endereco = {
-      id: `end_${Date.now()}`,
+    adicionarEndereco({
+      id: crypto.randomUUID(),
       cep,
       rua,
       numero,
@@ -73,22 +66,21 @@ export default function CartModal() {
       cidade,
       uf,
       padrao: true,
-    };
+    });
 
-    adicionarEndereco(novoEndereco);
-    setMostrarFormularioEndereco(false);
+    setMostrarFormEndereco(false);
   }
 
-  /* ================= FINALIZAR ================= */
+  /* ================= FINALIZAR PEDIDO ================= */
 
   async function finalizarPedido() {
-    if (!cliente) {
-      alert("Identifique-se para finalizar o pedido.");
+    if (!nome.trim() || !telefone.trim()) {
+      alert("Informe nome completo e celular.");
       return;
     }
 
     if (!enderecoSelecionado) {
-      alert("Selecione ou cadastre um endereço.");
+      alert("Selecione um endereço.");
       return;
     }
 
@@ -97,24 +89,25 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const telefoneCliente = cliente.telefone.startsWith("+")
-        ? cliente.telefone
-        : `+55${cliente.telefone.replace(/\D/g, "")}`;
+      const telefoneFormatado = telefone.startsWith("+")
+        ? telefone
+        : `+55${telefone.replace(/\D/g, "")}`;
 
       setCliente({
-        ...cliente,
-        telefone: telefoneCliente,
+        id: cliente?.id || crypto.randomUUID(),
+        nome,
+        telefone: telefoneFormatado,
+        cadastrado: true,
         comprasComDesconto:
-          typeof cliente.comprasComDesconto === "number"
+          typeof cliente?.comprasComDesconto === "number"
             ? cliente.comprasComDesconto + 1
             : 1,
       });
 
       await addDoc(collection(db, "pedidos"), {
         cliente: {
-          id: cliente.id,
-          nome: cliente.nome,
-          telefone: telefoneCliente,
+          nome,
+          telefone: telefoneFormatado,
         },
         endereco: enderecoSelecionado,
         itens: carrinho.map((item) => ({
@@ -124,7 +117,7 @@ export default function CartModal() {
           quantidade: item.qtd,
         })),
         total: totalFinal,
-        pagamento: { tipo: formaPagamento },
+        pagamento: { tipo: "pix" },
         status: "novo",
         createdAt: serverTimestamp(),
       });
@@ -148,23 +141,19 @@ export default function CartModal() {
         onClick={() => setCartOpen(false)}
       />
 
-      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
+      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto space-y-4">
+        <h2 className="font-bold text-lg">🛒 Seu carrinho</h2>
 
         {carrinho.map((item) => (
-          <div
-            key={item.id}
-            className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
-          >
+          <div key={item.id} className="flex gap-3 bg-zinc-800 p-3 rounded-xl">
             <Image
-              src={item.imagem || "/placeholder.png"}
+              src={item.imagem || ""}
               alt={item.nome}
               width={60}
               height={60}
               className="rounded-lg"
               unoptimized
             />
-
             <div>
               <p className="font-semibold">{item.nome}</p>
               <p className="text-sm text-zinc-400">
@@ -174,102 +163,82 @@ export default function CartModal() {
           </div>
         ))}
 
-        {/* ENDEREÇO */}
-        <div className="mt-4">
-          <p className="font-semibold mb-2">📍 Endereço de entrega</p>
-
-          {!mostrarFormularioEndereco && enderecoSelecionado && (
-            <div className="bg-green-900/30 border border-green-500 rounded-xl p-3">
-              <p className="font-semibold">
-                {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
-              </p>
-              <p className="text-sm text-zinc-300">
-                {enderecoSelecionado.bairro} –{" "}
-                {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
-              </p>
-
-              <button
-                onClick={() => setMostrarFormularioEndereco(true)}
-                className="mt-2 text-sm text-green-400 underline"
-              >
-                ➕ Adicionar novo endereço
-              </button>
-            </div>
-          )}
-
-          {mostrarFormularioEndereco && (
-            <div className="space-y-2">
-              <input
-                placeholder="CEP"
-                value={cep}
-                onChange={(e) => setCep(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-              <input
-                placeholder="Rua"
-                value={rua}
-                onChange={(e) => setRua(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-              <input
-                placeholder="Número"
-                value={numero}
-                onChange={(e) => setNumero(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-              <input
-                placeholder="Bairro"
-                value={bairro}
-                onChange={(e) => setBairro(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-              <input
-                placeholder="Cidade"
-                value={cidade}
-                onChange={(e) => setCidade(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-              <input
-                placeholder="UF"
-                value={uf}
-                onChange={(e) => setUf(e.target.value)}
-                className="w-full p-2 rounded bg-zinc-800"
-              />
-
-              <button
-                onClick={salvarEndereco}
-                className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
-              >
-                Salvar endereço
-              </button>
-            </div>
-          )}
+        {/* CLIENTE */}
+        <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+          <input
+            className="w-full bg-zinc-900 p-2 rounded"
+            placeholder="Nome completo"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+          <input
+            className="w-full bg-zinc-900 p-2 rounded"
+            placeholder="Celular"
+            value={telefone}
+            onChange={(e) => setTelefone(e.target.value)}
+          />
         </div>
 
-        {/* TOTAL */}
-        <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
-          <div className="flex justify-between text-sm text-zinc-400">
-            <span>Subtotal</span>
-            <span>R$ {total.toFixed(2)}</span>
+        {/* ENDEREÇO */}
+        {enderecoSelecionado && !mostrarFormEndereco && (
+          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
+            <p className="font-semibold">
+              {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
+            </p>
+            <p className="text-sm text-zinc-300">
+              {enderecoSelecionado.bairro} – {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+            </p>
+
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="mt-2 text-sm text-green-400 font-semibold"
+            >
+              ➕ Adicionar novo endereço
+            </button>
           </div>
+        )}
 
-          {temDesconto && (
-            <div className="flex justify-between text-sm text-green-400">
-              <span>Desconto</span>
-              <span>-5%</span>
-            </div>
-          )}
+        {mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            <input className="input" placeholder="CEP" value={cep} onChange={(e) => setCep(e.target.value)} />
+            <input className="input" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
+            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
+            <input className="input" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+            <input className="input" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
 
-          <div className="flex justify-between font-bold text-lg mt-2">
+            <button
+              onClick={salvarEndereco}
+              className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+            >
+              Salvar endereço
+            </button>
+
+            {enderecoSelecionado && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full text-sm text-zinc-400"
+              >
+                Usar endereço já salvo
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* TOTAL */}
+        <div className="bg-zinc-800 p-3 rounded-xl">
+          <div className="flex justify-between text-sm">
             <span>Total</span>
-            <span>R$ {totalFinal.toFixed(2)}</span>
+            <span className="font-bold text-green-400">
+              R$ {totalFinal.toFixed(2)}
+            </span>
           </div>
         </div>
 
         <button
-          disabled={loading}
           onClick={finalizarPedido}
-          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-60"
+          disabled={loading}
+          className="w-full bg-green-500 text-black py-3 rounded-xl font-bold"
         >
           🚚 Finalizar pedido
         </button>
