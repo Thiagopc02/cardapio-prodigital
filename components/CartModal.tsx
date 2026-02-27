@@ -11,12 +11,11 @@ import { useAddress, Endereco } from "@/context/AddressContext";
 
 /* ================= TIPOS ================= */
 
-type FormaPagamento = "dinheiro" | "pix" | "cartao";
+type FormaPagamento = "pix";
 
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  /* ================= CONTEXTOS ================= */
   const {
     carrinho,
     total,
@@ -29,18 +28,14 @@ export default function CartModal() {
   const {
     enderecoSelecionado,
     adicionarEndereco,
-    selecionarEndereco,
   } = useAddress();
 
   /* ================= STATE ================= */
+
   const [loading, setLoading] = useState(false);
-  const [formaPagamento] = useState<FormaPagamento>("pix");
+  const [mostrarFormularioEndereco, setMostrarFormularioEndereco] =
+    useState(!enderecoSelecionado);
 
-  // dados do cliente
-  const [nome, setNome] = useState(cliente?.nome || "");
-  const [telefone, setTelefone] = useState(cliente?.telefone || "");
-
-  // endereço
   const [cep, setCep] = useState("");
   const [rua, setRua] = useState("");
   const [numero, setNumero] = useState("");
@@ -48,7 +43,10 @@ export default function CartModal() {
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
 
-  /* ================= DESCONTO ================= */
+  const formaPagamento: FormaPagamento = "pix";
+
+  /* ================= REGRAS ================= */
+
   const temDesconto =
     !!cliente &&
     typeof cliente.comprasComDesconto === "number" &&
@@ -56,13 +54,13 @@ export default function CartModal() {
 
   const totalFinal = temDesconto ? total * 0.95 : total;
 
-  /* ================= GUARD ================= */
   if (!cartOpen) return null;
 
-  /* ================= SALVAR ENDEREÇO ================= */
+  /* ================= ENDEREÇO ================= */
+
   function salvarEndereco() {
-    if (!nome || !telefone || !cep || !rua || !numero || !bairro) {
-      alert("Preencha nome, telefone e endereço completo.");
+    if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
+      alert("Preencha todos os campos do endereço.");
       return;
     }
 
@@ -78,27 +76,19 @@ export default function CartModal() {
     };
 
     adicionarEndereco(novoEndereco);
-    selecionarEndereco(novoEndereco.id);
-
-    // salva/atualiza cliente
-    setCliente({
-      id: cliente?.id || `cli_${Date.now()}`,
-      nome,
-      telefone,
-      cadastrado: true,
-      comprasComDesconto: cliente?.comprasComDesconto || 0,
-    });
+    setMostrarFormularioEndereco(false);
   }
 
-  /* ================= FINALIZAR PEDIDO ================= */
+  /* ================= FINALIZAR ================= */
+
   async function finalizarPedido() {
     if (!cliente) {
-      alert("Informe seus dados.");
+      alert("Identifique-se para finalizar o pedido.");
       return;
     }
 
     if (!enderecoSelecionado) {
-      alert("Informe o endereço de entrega.");
+      alert("Selecione ou cadastre um endereço.");
       return;
     }
 
@@ -107,11 +97,24 @@ export default function CartModal() {
     try {
       setLoading(true);
 
+      const telefoneCliente = cliente.telefone.startsWith("+")
+        ? cliente.telefone
+        : `+55${cliente.telefone.replace(/\D/g, "")}`;
+
+      setCliente({
+        ...cliente,
+        telefone: telefoneCliente,
+        comprasComDesconto:
+          typeof cliente.comprasComDesconto === "number"
+            ? cliente.comprasComDesconto + 1
+            : 1,
+      });
+
       await addDoc(collection(db, "pedidos"), {
         cliente: {
           id: cliente.id,
           nome: cliente.nome,
-          telefone: cliente.telefone,
+          telefone: telefoneCliente,
         },
         endereco: enderecoSelecionado,
         itens: carrinho.map((item) => ({
@@ -128,8 +131,8 @@ export default function CartModal() {
 
       limparCarrinho();
       setCartOpen(false);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       alert("Erro ao finalizar pedido.");
     } finally {
       setLoading(false);
@@ -140,24 +143,21 @@ export default function CartModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* BACKDROP */}
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
       />
 
-      {/* MODAL */}
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
 
-        {/* ITENS */}
         {carrinho.map((item) => (
           <div
             key={item.id}
             className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
           >
             <Image
-              src={item.imagem}
+              src={item.imagem || "/placeholder.png"}
               alt={item.nome}
               width={60}
               height={60}
@@ -178,65 +178,70 @@ export default function CartModal() {
         <div className="mt-4">
           <p className="font-semibold mb-2">📍 Endereço de entrega</p>
 
-          {!enderecoSelecionado ? (
-            <div className="space-y-2">
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="Nome completo"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-              />
-
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="Telefone"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-              />
-
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="CEP"
-                value={cep}
-                onChange={(e) => setCep(e.target.value)}
-              />
-
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="Rua"
-                value={rua}
-                onChange={(e) => setRua(e.target.value)}
-              />
-
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="Número"
-                value={numero}
-                onChange={(e) => setNumero(e.target.value)}
-              />
-
-              <input
-                className="w-full bg-zinc-800 p-2 rounded"
-                placeholder="Bairro"
-                value={bairro}
-                onChange={(e) => setBairro(e.target.value)}
-              />
-
-              <button
-                onClick={salvarEndereco}
-                className="w-full bg-blue-500 text-black py-2 rounded font-bold"
-              >
-                Salvar endereço
-              </button>
-            </div>
-          ) : (
-            <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
+          {!mostrarFormularioEndereco && enderecoSelecionado && (
+            <div className="bg-green-900/30 border border-green-500 rounded-xl p-3">
               <p className="font-semibold">
                 {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
               </p>
               <p className="text-sm text-zinc-300">
-                {enderecoSelecionado.bairro} – {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+                {enderecoSelecionado.bairro} –{" "}
+                {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
               </p>
+
+              <button
+                onClick={() => setMostrarFormularioEndereco(true)}
+                className="mt-2 text-sm text-green-400 underline"
+              >
+                ➕ Adicionar novo endereço
+              </button>
+            </div>
+          )}
+
+          {mostrarFormularioEndereco && (
+            <div className="space-y-2">
+              <input
+                placeholder="CEP"
+                value={cep}
+                onChange={(e) => setCep(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+              <input
+                placeholder="Rua"
+                value={rua}
+                onChange={(e) => setRua(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+              <input
+                placeholder="Número"
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+              <input
+                placeholder="Bairro"
+                value={bairro}
+                onChange={(e) => setBairro(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+              <input
+                placeholder="Cidade"
+                value={cidade}
+                onChange={(e) => setCidade(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+              <input
+                placeholder="UF"
+                value={uf}
+                onChange={(e) => setUf(e.target.value)}
+                className="w-full p-2 rounded bg-zinc-800"
+              />
+
+              <button
+                onClick={salvarEndereco}
+                className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+              >
+                Salvar endereço
+              </button>
             </div>
           )}
         </div>
@@ -261,11 +266,10 @@ export default function CartModal() {
           </div>
         </div>
 
-        {/* FINALIZAR */}
         <button
-          disabled={loading || !enderecoSelecionado}
+          disabled={loading}
           onClick={finalizarPedido}
-          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-50"
+          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-60"
         >
           🚚 Finalizar pedido
         </button>
