@@ -18,13 +18,32 @@ type FormaPagamento = "entrega" | "mercadopago";
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
-  const { enderecoSelecionado } = useAddress();
+  const {
+    enderecoSelecionado,
+    enderecos,
+    adicionarEndereco,
+    removerEndereco,
+    selecionarEndereco,
+  } = useAddress();
+
+  /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
+  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
+    !enderecoSelecionado
+  );
 
   // Cliente
   const [nome, setNome] = useState(cliente?.nome || "");
   const [telefone, setTelefone] = useState(cliente?.telefone || "");
+
+  // Endereço
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("");
 
   /* ================= DESCONTO ================= */
 
@@ -56,38 +75,98 @@ export default function CartModal() {
 
     const enderecoTexto = enderecoSelecionado
       ? `${enderecoSelecionado.rua}, ${enderecoSelecionado.numero}
-${enderecoSelecionado.bairro} — ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
+${enderecoSelecionado.bairro} – ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
       : "Retirada no local";
 
-    const hora = new Date().toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
-    const mensagem = 
-`🛒 *NOVO PEDIDO — CARDÁPIO PRO DIGITAL*
+    const mensagem = `
+🛒 *NOVO PEDIDO*
 
 👤 *Cliente:* ${nome}
 📞 *Telefone:* ${formatarTelefone(telefone)}
 
-📍 *Entrega:*
+📍 *Endereço:*
 ${enderecoTexto}
 
-📦 *Itens do pedido:*
+📦 *Itens:*
 ${itensTexto}
 
 💰 *Total:* R$ ${totalFinal.toFixed(2)}
 
-🆔 *Código do pedido:*
-${pedidoId}
-
-⏰ *Horário:* ${hora}
-
-✅ Pedido recebido com sucesso.`;
+🆔 *Pedido:* ${pedidoId}
+`;
 
     return `https://wa.me/${telefoneEmpresa}?text=${encodeURIComponent(
       mensagem
     )}`;
+  }
+
+  /* ================= MÁSCARAS ================= */
+
+  function mascaraCep(v: string) {
+    return v
+      .replace(/\D/g, "")
+      .replace(/^(\d{5})(\d)/, "$1-$2")
+      .slice(0, 9);
+  }
+
+  function mascaraTelefone(v: string) {
+    return v
+      .replace(/\D/g, "")
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
+      .slice(0, 15);
+  }
+
+  /* ================= BUSCAR CEP ================= */
+
+  async function buscarCep(valor: string) {
+    const limpo = valor.replace(/\D/g, "");
+    if (limpo.length !== 8) return;
+
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+
+      setRua(data.logradouro || "");
+      setBairro(data.bairro || "");
+      setCidade(data.localidade || "");
+      setUf(data.uf || "");
+    } catch {}
+  }
+
+  /* ================= ENDEREÇO ================= */
+
+  function salvarEndereco() {
+    if (enderecos.length >= 3) {
+      alert("Você pode cadastrar no máximo 3 endereços.");
+      return;
+    }
+
+    if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
+      alert("Preencha todos os campos do endereço.");
+      return;
+    }
+
+    adicionarEndereco({
+      id: crypto.randomUUID(),
+      cep,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      uf,
+      padrao: true,
+    });
+
+    setCep("");
+    setRua("");
+    setNumero("");
+    setBairro("");
+    setCidade("");
+    setUf("");
+
+    setMostrarFormEndereco(false);
   }
 
   /* ================= FINALIZAR ================= */
@@ -99,7 +178,7 @@ ${pedidoId}
     }
 
     if (!enderecoSelecionado) {
-      alert("Selecione um endereço para entrega.");
+      alert("Informe o endereço de entrega.");
       return;
     }
 
@@ -190,10 +269,108 @@ ${pedidoId}
             className="w-full bg-zinc-900 p-2 rounded"
             placeholder="Celular"
             value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
+            onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
             inputMode="numeric"
           />
         </div>
+
+        {/* NENHUM ENDEREÇO */}
+        {enderecos.length === 0 && !mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl">
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="w-full text-sm text-green-400 font-semibold"
+            >
+              ➕ Adicionar endereço
+            </button>
+          </div>
+        )}
+
+        {/* ENDEREÇOS SALVOS */}
+        {enderecos.length > 0 && !mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            <p className="text-sm font-semibold text-zinc-300">
+              📍 Endereços salvos
+            </p>
+
+            {enderecos.map((end) => (
+              <div
+                key={end.id}
+                className={`flex justify-between items-center p-2 rounded-lg border ${
+                  end.padrao
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-zinc-700"
+                }`}
+              >
+                <button
+                  onClick={() => selecionarEndereco(end.id)}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm font-semibold">
+                    {end.rua}, {end.numero}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {end.bairro} – {end.cidade}/{end.uf}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => removerEndereco(end.id)}
+                  className="text-xs text-red-400 ml-2"
+                >
+                  Excluir
+                </button>
+              </div>
+            ))}
+
+            {enderecos.length < 3 && (
+              <button
+                onClick={() => setMostrarFormEndereco(true)}
+                className="w-full text-sm text-green-400 font-semibold mt-2"
+              >
+                ➕ Adicionar novo endereço
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* FORM ENDEREÇO */}
+        {mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            <input
+              className="input"
+              placeholder="CEP"
+              value={cep}
+              onChange={(e) => {
+                const v = mascaraCep(e.target.value);
+                setCep(v);
+                buscarCep(v);
+              }}
+              inputMode="numeric"
+            />
+            <input className="input" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
+            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} />
+            <input className="input" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+            <input className="input" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
+
+            <button
+              onClick={salvarEndereco}
+              className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+            >
+              Salvar endereço
+            </button>
+
+            {enderecoSelecionado && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full py-2 text-sm text-green-400 font-semibold border border-green-500/40 rounded-xl"
+              >
+                ↩ Usar endereço já salvo
+              </button>
+            )}
+          </div>
+        )}
 
         {/* TOTAL */}
         <div className="bg-zinc-800 p-3 rounded-xl flex justify-between font-bold">
