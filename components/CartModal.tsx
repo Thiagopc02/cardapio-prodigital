@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
 import { useCart } from "@/context/CartContext";
 import { useCliente } from "@/context/ClientContext";
-import { useAddress } from "@/context/AddressContext";
+import { useAddress, Endereco } from "@/context/AddressContext";
 
 /* ================= TIPOS ================= */
 
@@ -26,13 +26,50 @@ export default function CartModal() {
   } = useCart();
 
   const { cliente, setCliente } = useCliente();
-  const { enderecoSelecionado } = useAddress();
+
+  const {
+    enderecos,
+    enderecoSelecionado,
+    selecionarEndereco,
+    adicionarEndereco,
+  } = useAddress();
 
   /* ================= STATE ================= */
   const [loading, setLoading] = useState(false);
   const [formaPagamento] = useState<FormaPagamento>("pix");
 
-  /* ================= REGRAS ================= */
+  const [novoEndereco, setNovoEndereco] = useState<Omit<Endereco, "id">>({
+    cep: "",
+    rua: "",
+    numero: "",
+    bairro: "",
+    complemento: "",
+    cidade: "",
+    uf: "",
+    padrao: true,
+  });
+
+  /* ================= BUSCA CEP ================= */
+  useEffect(() => {
+    const cepLimpo = novoEndereco.cep.replace(/\D/g, "");
+    if (cepLimpo.length !== 8) return;
+
+    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.erro) {
+          setNovoEndereco((prev) => ({
+            ...prev,
+            rua: data.logradouro || "",
+            bairro: data.bairro || "",
+            cidade: data.localidade || "",
+            uf: data.uf || "",
+          }));
+        }
+      });
+  }, [novoEndereco.cep]);
+
+  /* ================= DESCONTO ================= */
   const temDesconto =
     !!cliente &&
     typeof cliente.comprasComDesconto === "number" &&
@@ -64,7 +101,6 @@ export default function CartModal() {
         ? cliente.telefone
         : `+55${cliente.telefone.replace(/\D/g, "")}`;
 
-      // Atualiza cliente SEM função (evita erro de tipagem)
       setCliente({
         ...cliente,
         telefone: telefoneCliente,
@@ -74,7 +110,7 @@ export default function CartModal() {
             : 1,
       });
 
-      await addDoc(collection(db, "pedidos"), {
+      const docRef = await addDoc(collection(db, "pedidos"), {
         cliente: {
           id: cliente.id,
           nome: cliente.nome,
@@ -95,6 +131,9 @@ export default function CartModal() {
 
       limparCarrinho();
       setCartOpen(false);
+
+      // 👉 Redireciona para acompanhamento do pedido
+      window.location.href = `/status?id=${docRef.id}`;
     } catch (error) {
       console.error(error);
       alert("Erro ao finalizar pedido.");
@@ -117,6 +156,7 @@ export default function CartModal() {
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
 
+        {/* ITENS */}
         {carrinho.map((item) => (
           <div
             key={item.id}
@@ -144,6 +184,79 @@ export default function CartModal() {
           </div>
         ))}
 
+        {/* ENDEREÇO */}
+        <div className="mt-4 space-y-2">
+          <h3 className="font-semibold">📍 Endereço de entrega</h3>
+
+          {enderecos.length > 0 ? (
+            enderecos.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => selecionarEndereco(e.id)}
+                className={`w-full text-left p-3 rounded-xl border ${
+                  e.padrao
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-zinc-700 bg-zinc-800"
+                }`}
+              >
+                <p className="text-sm font-semibold">
+                  {e.rua}, {e.numero}
+                </p>
+                <p className="text-xs text-zinc-400">
+                  {e.bairro} – {e.cidade}/{e.uf}
+                </p>
+              </button>
+            ))
+          ) : (
+            <div className="space-y-2">
+              <input
+                placeholder="CEP"
+                className="w-full p-2 rounded bg-zinc-800"
+                value={novoEndereco.cep}
+                onChange={(e) =>
+                  setNovoEndereco({ ...novoEndereco, cep: e.target.value })
+                }
+              />
+              <input
+                placeholder="Rua"
+                className="w-full p-2 rounded bg-zinc-800"
+                value={novoEndereco.rua}
+                onChange={(e) =>
+                  setNovoEndereco({ ...novoEndereco, rua: e.target.value })
+                }
+              />
+              <input
+                placeholder="Número"
+                className="w-full p-2 rounded bg-zinc-800"
+                value={novoEndereco.numero}
+                onChange={(e) =>
+                  setNovoEndereco({ ...novoEndereco, numero: e.target.value })
+                }
+              />
+              <input
+                placeholder="Bairro"
+                className="w-full p-2 rounded bg-zinc-800"
+                value={novoEndereco.bairro}
+                onChange={(e) =>
+                  setNovoEndereco({ ...novoEndereco, bairro: e.target.value })
+                }
+              />
+
+              <button
+                onClick={() =>
+                  adicionarEndereco({
+                    ...novoEndereco,
+                    id: crypto.randomUUID(),
+                  })
+                }
+                className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+              >
+                Salvar endereço
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* TOTAL */}
         <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
           <div className="flex justify-between text-sm text-zinc-400">
@@ -170,9 +283,9 @@ export default function CartModal() {
           </div>
         ) : (
           <button
-            disabled={loading}
+            disabled={!enderecoSelecionado || loading}
             onClick={finalizarPedido}
-            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-60"
+            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-40"
           >
             🚚 Finalizar pedido
           </button>
