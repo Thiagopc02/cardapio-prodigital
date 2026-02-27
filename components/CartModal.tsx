@@ -16,7 +16,14 @@ type FormaPagamento = "dinheiro" | "pix" | "cartao";
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
-  const { carrinho, total, setCartOpen, limparCarrinho } = useCart();
+  const {
+    carrinho,
+    total,
+    cartOpen,
+    setCartOpen,
+    limparCarrinho,
+  } = useCart();
+
   const { cliente, setCliente } = useCliente();
   const {
     enderecos,
@@ -37,6 +44,7 @@ export default function CartModal() {
     uf: "",
   });
 
+  /* ================= BUSCA CEP ================= */
   useEffect(() => {
     if (novoEndereco.cep.length !== 8) return;
 
@@ -55,10 +63,17 @@ export default function CartModal() {
       });
   }, [novoEndereco.cep]);
 
+  /* ================= TRAVA CORRETA ================= */
+  if (!cartOpen) return null;
+
+  /* ================= DESCONTO ================= */
+
   const temDesconto =
     cliente?.cadastrado && cliente.comprasComDesconto < 2;
 
   const totalFinal = temDesconto ? total * 0.95 : total;
+
+  /* ================= FINALIZAR ================= */
 
   async function finalizarPedido() {
     if (!cliente || !enderecoSelecionado || loading) {
@@ -108,13 +123,17 @@ export default function CartModal() {
     }
   }
 
+  /* ================= RENDER ================= */
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* BACKDROP */}
       <div
         className="absolute inset-0 bg-black/70"
         onClick={() => setCartOpen(false)}
       />
 
+      {/* MODAL */}
       <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto">
         <h2 className="font-bold text-lg mb-3">🛒 Seu carrinho</h2>
 
@@ -124,12 +143,18 @@ export default function CartModal() {
             className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
           >
             <Image
-              src={item.imagem || "/produtos/placeholder.png"}
+              src={
+                item.imagem && item.imagem.startsWith("/")
+                  ? item.imagem
+                  : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='100%' height='100%' fill='%23333333'/><text x='50%' y='50%' fill='%23999999' font-size='10' text-anchor='middle' dominant-baseline='middle'>SEM IMAGEM</text></svg>"
+              }
               alt={item.nome}
               width={60}
               height={60}
               className="rounded-lg"
+              unoptimized
             />
+
             <div>
               <p className="font-semibold">{item.nome}</p>
               <p className="text-sm text-zinc-400">
@@ -139,29 +164,7 @@ export default function CartModal() {
           </div>
         ))}
 
-        <div className="mt-4">
-          <p className="font-semibold mb-2">📍 Endereço de entrega</p>
-
-          {enderecos.map((end) => (
-            <button
-              key={end.id}
-              onClick={() => selecionarEndereco(end.id)}
-              className={`w-full text-left p-3 mb-2 rounded-xl border ${
-                enderecoSelecionado?.id === end.id
-                  ? "border-green-500 bg-green-500/10"
-                  : "border-zinc-700 bg-zinc-800"
-              }`}
-            >
-              <p className="text-sm">
-                {end.rua}, Nº {end.numero}
-              </p>
-              <p className="text-xs text-zinc-400">
-                {end.bairro} - {end.cidade}/{end.uf}
-              </p>
-            </button>
-          ))}
-        </div>
-
+        {/* TOTAL */}
         <div className="mt-4 bg-zinc-800 p-3 rounded-xl">
           <div className="flex justify-between text-sm text-zinc-400">
             <span>Subtotal</span>
@@ -189,7 +192,7 @@ export default function CartModal() {
           <button
             disabled={loading}
             onClick={finalizarPedido}
-            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold"
+            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-60"
           >
             🚚 Finalizar pedido
           </button>
