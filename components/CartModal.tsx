@@ -28,6 +28,8 @@ export default function CartModal() {
   /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
+
+  // 🔑 CORREÇÃO MOBILE (iPhone)
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
     !enderecoSelecionado
   );
@@ -173,8 +175,7 @@ ${itensTexto}
       });
 
       if (tipo === "entrega") {
-        const link = gerarLinkWhatsApp(pedidoRef.id);
-        window.location.href = link; // ✅ NÃO BLOQUEIA NO iOS
+        window.location.href = gerarLinkWhatsApp(pedidoRef.id);
       }
 
       limparCarrinho();
@@ -283,6 +284,15 @@ ${itensTexto}
             >
               Salvar endereço
             </button>
+
+            {enderecoSelecionado && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full py-2 text-sm text-green-400 font-semibold border border-green-500/40 rounded-xl"
+              >
+                ↩ Usar endereço já salvo
+              </button>
+            )}
           </div>
         )}
 
