@@ -1,9 +1,8 @@
+// app/(SITE)/layout.tsx
 import "../globals.css";
 
-import { AuthProvider } from "@/context/AuthContext";
-import { CartProvider } from "@/context/CartContext";
-
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import FloatingCart from "@/components/FloatingCart";
 import CartModal from "@/components/CartModal";
 
@@ -18,18 +17,18 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <Header />
+    <>
+      <Header />
 
-        {children}
+      {children}
 
-        {/* Modal do carrinho (sempre montado, controlado internamente) */}
-        <CartModal />
+      {/* Modal do carrinho (controlado pelo CartContext) */}
+      <CartModal />
 
-        {/* Botão flutuante */}
-        <FloatingCart />
-      </CartProvider>
-    </AuthProvider>
+      {/* Botão flutuante */}
+      <FloatingCart />
+
+      <Footer />
+    </>
   );
 }

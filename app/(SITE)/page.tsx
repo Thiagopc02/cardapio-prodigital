@@ -1,15 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useCart } from "@/context/CartContext";
 
-import Footer from "@/components/Footer";
 import CategorySection from "@/components/CategorySection";
-import FloatingCart from "@/components/FloatingCart";
-import CartModal from "@/components/CartModal";
-
 import { Produto, getProdutosAtivos } from "@/firebase/produtos";
 
 /* ================= CONFIG ================= */
@@ -30,13 +25,14 @@ const ORDEM_CATEGORIAS = [
 
 /* ================= PAGE ================= */
 
-export default function Home() {
+export default function HomePage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  const { cartOpen } = useCart();
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingProdutos, setLoadingProdutos] = useState(true);
+
+  /* ================= BUSCA PRODUTOS ================= */
 
   useEffect(() => {
     async function carregarProdutos() {
@@ -49,15 +45,17 @@ export default function Home() {
         }));
 
         setProdutos(normalizados);
-      } catch (error) {
-        console.error("Erro ao carregar produtos:", error);
+      } catch (err) {
+        console.error("Erro ao carregar produtos:", err);
       } finally {
-        setLoading(false);
+        setLoadingProdutos(false);
       }
     }
 
     carregarProdutos();
   }, []);
+
+  /* ================= AGRUPAMENTO ================= */
 
   const produtosPorCategoria = useMemo(() => {
     const map: Record<string, Produto[]> = {};
@@ -70,80 +68,80 @@ export default function Home() {
     return map;
   }, [produtos]);
 
+  /* ================= LOADING AUTH ================= */
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center">
+        <p className="text-zinc-400">Carregando cardápio...</p>
+      </div>
+    );
+  }
+
+  /* ================= RENDER ================= */
+
   return (
-    <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
-      <main className="flex-1 px-4 pb-32 max-w-md mx-auto space-y-4">
+    <main className="flex-1 px-4 pb-32 max-w-md mx-auto space-y-4">
+      {/* ================= CTA HOME ================= */}
+      <div className="bg-zinc-950 border border-green-500/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+        {user ? (
+          <div className="text-green-400 text-sm font-semibold">
+            👋 Olá, <b>{user.displayName || user.email}</b>
+            <div className="text-xs text-green-300">boas compras 😎</div>
 
-        {/* ================= CTA HOME ================= */}
-        {!authLoading && (
-          <div className="bg-zinc-950 border border-green-500/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-            {user ? (
-              <div className="text-green-400 text-sm font-semibold">
-                👋 Olá, <b>{user.displayName || user.email}</b>
-                <div className="text-xs text-green-300">
-                  boas compras 😎
-                </div>
-
-                <button
-                  onClick={() => router.push("/status")}
-                  className="mt-1 text-xs text-red-400 font-bold flex items-center gap-1 hover:underline"
-                >
-                  🔴 Acompanhar pedidos
-                </button>
-              </div>
-            ) : (
-              <div className="text-green-400 text-sm font-semibold">
-                🎁 Cadastre-se e ganhe <b>5% OFF</b>
-                <div className="text-xs font-normal text-green-300">
-                  nas 2 primeiras compras
-                </div>
-              </div>
-            )}
-
-            {!user && (
-              <button
-                onClick={() => router.push("/login")}
-                className="bg-green-500 text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-green-400 transition"
-              >
-                Cadastrar
-              </button>
-            )}
+            <button
+              onClick={() => router.push("/status")}
+              className="mt-1 text-xs text-red-400 font-bold hover:underline"
+            >
+              🔴 Acompanhar pedidos
+            </button>
+          </div>
+        ) : (
+          <div className="text-green-400 text-sm font-semibold">
+            🎁 Cadastre-se e ganhe <b>5% OFF</b>
+            <div className="text-xs font-normal text-green-300">
+              nas 2 primeiras compras
+            </div>
           </div>
         )}
 
-        {/* ================= PRODUTOS ================= */}
-
-        {loading && (
-          <p className="text-center text-zinc-400 mt-10">
-            Carregando produtos...
-          </p>
+        {!user && (
+          <button
+            onClick={() => router.push("/login")}
+            className="bg-green-500 text-black text-sm font-bold px-4 py-2 rounded-lg hover:bg-green-400 transition"
+          >
+            Cadastrar
+          </button>
         )}
+      </div>
 
-        {!loading && produtos.length === 0 && (
-          <p className="text-center text-red-400 mt-10">
-            Nenhum produto encontrado.
-          </p>
-        )}
+      {/* ================= PRODUTOS ================= */}
 
-        {!loading &&
-          ORDEM_CATEGORIAS.map((categoria) => {
-            const lista = produtosPorCategoria[categoria];
-            if (!lista || lista.length === 0) return null;
+      {loadingProdutos && (
+        <p className="text-center text-zinc-400 mt-10">
+          Carregando produtos...
+        </p>
+      )}
 
-            return (
-              <CategorySection
-                key={categoria}
-                categoria={CATEGORIAS_LABELS[categoria]}
-                produtos={lista}
-              />
-            );
-          })}
-      </main>
+      {!loadingProdutos && produtos.length === 0 && (
+        <p className="text-center text-red-400 mt-10">
+          Nenhum produto encontrado.
+        </p>
+      )}
 
-      {/* ================= FIXOS ================= */}
-      <FloatingCart />
-      {cartOpen && <CartModal />}
-      <Footer />
-    </div>
+      {!loadingProdutos &&
+        ORDEM_CATEGORIAS.map((categoria) => {
+          const lista = produtosPorCategoria[categoria];
+          if (!lista || lista.length === 0) return null;
+
+          return (
+            <CategorySection
+              key={categoria}
+              categoria={CATEGORIAS_LABELS[categoria]}
+              produtos={lista}
+            />
+          );
+        })}
+    </main>
   );
 }

@@ -17,7 +17,9 @@ export default function RootLayout({
         <AuthProvider>
           <ClientProvider>
             <AddressProvider>
-              <CartProvider>{children}</CartProvider>
+              <CartProvider>
+                {children}
+              </CartProvider>
             </AddressProvider>
           </ClientProvider>
         </AuthProvider>
