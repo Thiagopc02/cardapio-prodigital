@@ -24,7 +24,7 @@ export default function CartModal() {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔑 iPhone safe: se não tem endereço, mostra formulário
+  // 🔑 CORREÇÃO MOBILE (iPhone)
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
     !enderecoSelecionado
   );
@@ -54,45 +54,6 @@ export default function CartModal() {
 
   /* ================= HELPERS ================= */
 
-  function maskCep(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .replace(/^(\d{5})(\d)/, "$1-$2")
-      .slice(0, 9);
-  }
-
-  function maskTelefone(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d)/, "$1-$2")
-      .slice(0, 15);
-  }
-
-  async function buscarCep(valor: string) {
-    const cepLimpo = valor.replace(/\D/g, "");
-    if (cepLimpo.length !== 8) return;
-
-    try {
-      const res = await fetch(
-        `https://viacep.com.br/ws/${cepLimpo}/json/`
-      );
-      const data = await res.json();
-
-      if (data.erro) {
-        alert("CEP não encontrado.");
-        return;
-      }
-
-      setRua(data.logradouro || "");
-      setBairro(data.bairro || "");
-      setCidade(data.localidade || "");
-      setUf(data.uf || "");
-    } catch (err) {
-      console.error("Erro ao buscar CEP", err);
-    }
-  }
-
   function formatarTelefone(tel: string) {
     return tel.startsWith("+") ? tel : `+55${tel.replace(/\D/g, "")}`;
   }
@@ -107,8 +68,10 @@ export default function CartModal() {
       )
       .join("\n");
 
-    const enderecoTexto = `${enderecoSelecionado!.rua}, ${enderecoSelecionado!.numero}
-${enderecoSelecionado!.bairro} – ${enderecoSelecionado!.cidade}/${enderecoSelecionado!.uf}`;
+    const enderecoTexto = enderecoSelecionado
+      ? `${enderecoSelecionado.rua}, ${enderecoSelecionado.numero}
+${enderecoSelecionado.bairro} – ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
+      : "Retirada no local";
 
     const mensagem = `
 🛒 *NOVO PEDIDO*
@@ -258,27 +221,42 @@ ${itensTexto}
             className="w-full bg-zinc-900 p-2 rounded"
             placeholder="Celular"
             value={telefone}
-            onChange={(e) => setTelefone(maskTelefone(e.target.value))}
-            inputMode="tel"
+            onChange={(e) => setTelefone(e.target.value)}
           />
         </div>
 
         {/* ENDEREÇO */}
+        <h3 className="text-sm font-semibold text-zinc-300">
+          📍 Endereço de entrega
+        </h3>
+
+        {enderecoSelecionado && !mostrarFormEndereco && (
+          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
+            <p className="font-semibold">
+              {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
+            </p>
+            <p className="text-sm text-zinc-300">
+              {enderecoSelecionado.bairro} –{" "}
+              {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+            </p>
+
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="mt-2 text-sm text-green-400 font-semibold"
+            >
+              ➕ Adicionar novo endereço
+            </button>
+          </div>
+        )}
+
         {mostrarFormEndereco && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
-            <input
-              className="w-full bg-zinc-900 p-2 rounded"
-              placeholder="CEP"
-              value={cep}
-              onChange={(e) => setCep(maskCep(e.target.value))}
-              onBlur={() => buscarCep(cep)}
-              inputMode="numeric"
-            />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="CEP" value={cep} onChange={(e) => setCep(e.target.value)} />
             <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
-            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
             <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
             <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
-            <input className="w-full bg-zinc-900 p-2 rounded uppercase" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase())} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
 
             <button
               onClick={salvarEndereco}
@@ -286,6 +264,15 @@ ${itensTexto}
             >
               Salvar endereço
             </button>
+
+            {enderecoSelecionado && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full text-sm text-zinc-400"
+              >
+                Usar endereço já salvo
+              </button>
+            )}
           </div>
         )}
 
