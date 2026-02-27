@@ -24,7 +24,7 @@ export default function CartModal() {
 
   const [loading, setLoading] = useState(false);
 
-  // 🔑 CORREÇÃO MOBILE (iPhone)
+  // 🔑 garante que no mobile o formulário apareça se não houver endereço
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
     !enderecoSelecionado
   );
@@ -52,25 +52,29 @@ export default function CartModal() {
 
   if (!cartOpen) return null;
 
-  /* ================= HELPERS (NOVOS) ================= */
+  /* ================= HELPERS ================= */
+
+  function formatarTelefone(tel: string) {
+    const limpo = tel.replace(/\D/g, "");
+    return limpo.startsWith("55") ? `+${limpo}` : `+55${limpo}`;
+  }
+
+  function maskTelefone(value: string) {
+    const v = value.replace(/\D/g, "").slice(0, 11);
+    return v
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2");
+  }
 
   function maskCep(value: string) {
     return value
       .replace(/\D/g, "")
-      .replace(/^(\d{5})(\d)/, "$1-$2")
-      .slice(0, 9);
+      .slice(0, 8)
+      .replace(/^(\d{5})(\d)/, "$1-$2");
   }
 
-  function maskTelefone(value: string) {
-    return value
-      .replace(/\D/g, "")
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d)/, "$1-$2")
-      .slice(0, 15);
-  }
-
-  async function buscarCep(valor: string) {
-    const cepLimpo = valor.replace(/\D/g, "");
+  async function buscarCep(cepValor: string) {
+    const cepLimpo = cepValor.replace(/\D/g, "");
     if (cepLimpo.length !== 8) return;
 
     try {
@@ -79,19 +83,15 @@ export default function CartModal() {
       );
       const data = await res.json();
 
-      if (data.erro) return;
-
-      setRua(data.logradouro || "");
-      setBairro(data.bairro || "");
-      setCidade(data.localidade || "");
-      setUf(data.uf || "");
+      if (!data.erro) {
+        setRua(data.logradouro || "");
+        setBairro(data.bairro || "");
+        setCidade(data.localidade || "");
+        setUf(data.uf || "");
+      }
     } catch (err) {
       console.error("Erro ao buscar CEP", err);
     }
-  }
-
-  function formatarTelefone(tel: string) {
-    return tel.startsWith("+") ? tel : `+55${tel.replace(/\D/g, "")}`;
   }
 
   function enviarPedidoWhatsApp(pedidoId: string) {
@@ -258,11 +258,34 @@ ${itensTexto}
             placeholder="Celular"
             value={telefone}
             onChange={(e) => setTelefone(maskTelefone(e.target.value))}
-            inputMode="tel"
+            inputMode="numeric"
           />
         </div>
 
         {/* ENDEREÇO */}
+        <h3 className="text-sm font-semibold text-zinc-300">
+          📍 Endereço de entrega
+        </h3>
+
+        {enderecoSelecionado && !mostrarFormEndereco && (
+          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
+            <p className="font-semibold">
+              {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
+            </p>
+            <p className="text-sm text-zinc-300">
+              {enderecoSelecionado.bairro} –{" "}
+              {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+            </p>
+
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="mt-2 text-sm text-green-400 font-semibold"
+            >
+              ➕ Adicionar novo endereço
+            </button>
+          </div>
+        )}
+
         {mostrarFormEndereco && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
             <input
@@ -273,11 +296,46 @@ ${itensTexto}
               onBlur={() => buscarCep(cep)}
               inputMode="numeric"
             />
-            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
-            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
-            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
-            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
-            <input className="w-full bg-zinc-900 p-2 rounded uppercase" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase())} />
+            <input
+              className="w-full bg-zinc-900 p-2 rounded"
+              placeholder="Rua"
+              value={rua}
+              onChange={(e) => setRua(e.target.value)}
+            />
+            <input
+              className="w-full bg-zinc-900 p-2 rounded"
+              placeholder="Número"
+              value={numero}
+              onChange={(e) =>
+                setNumero(e.target.value.replace(/\D/g, ""))
+              }
+              inputMode="numeric"
+            />
+            <input
+              className="w-full bg-zinc-900 p-2 rounded"
+              placeholder="Bairro"
+              value={bairro}
+              onChange={(e) => setBairro(e.target.value)}
+            />
+            <input
+              className="w-full bg-zinc-900 p-2 rounded"
+              placeholder="Cidade"
+              value={cidade}
+              onChange={(e) => setCidade(e.target.value)}
+            />
+            <input
+              className="w-full bg-zinc-900 p-2 rounded uppercase"
+              placeholder="UF"
+              value={uf}
+              onChange={(e) =>
+                setUf(
+                  e.target.value
+                    .replace(/[^A-Za-z]/g, "")
+                    .slice(0, 2)
+                    .toUpperCase()
+                )
+              }
+            />
 
             <button
               onClick={salvarEndereco}
@@ -285,6 +343,15 @@ ${itensTexto}
             >
               Salvar endereço
             </button>
+
+            {enderecoSelecionado && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full text-sm text-zinc-400"
+              >
+                Usar endereço já salvo
+              </button>
+            )}
           </div>
         )}
 
