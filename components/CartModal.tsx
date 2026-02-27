@@ -11,17 +11,14 @@ import { useAddress } from "@/context/AddressContext";
 
 /* ================= TIPOS ================= */
 
-type FormaPagamento = "pix" | "dinheiro" | "cartao";
+type FormaPagamento = "entrega" | "mercadopago";
 
 /* ================= COMPONENTE ================= */
 
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
-  const {
-    enderecoSelecionado,
-    adicionarEndereco,
-  } = useAddress();
+  const { enderecoSelecionado, adicionarEndereco } = useAddress();
 
   /* ================= STATE ================= */
 
@@ -40,6 +37,8 @@ export default function CartModal() {
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
 
+  /* ================= DESCONTO ================= */
+
   const temDesconto =
     !!cliente &&
     typeof cliente.comprasComDesconto === "number" &&
@@ -49,7 +48,53 @@ export default function CartModal() {
 
   if (!cartOpen) return null;
 
-  /* ================= SALVAR ENDEREÇO ================= */
+  /* ================= HELPERS ================= */
+
+  function formatarTelefone(tel: string) {
+    return tel.startsWith("+")
+      ? tel
+      : `+55${tel.replace(/\D/g, "")}`;
+  }
+
+  function enviarPedidoWhatsApp(pedidoId: string) {
+    const telefoneEmpresa = "62994524744";
+
+    const itensTexto = carrinho
+      .map(
+        (i) =>
+          `• ${i.qtd}x ${i.nome} — R$ ${(i.preco * i.qtd).toFixed(2)}`
+      )
+      .join("\n");
+
+    const enderecoTexto = enderecoSelecionado
+      ? `${enderecoSelecionado.rua}, ${enderecoSelecionado.numero}
+${enderecoSelecionado.bairro} – ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
+      : "Retirada no local";
+
+    const mensagem = `
+🛒 *NOVO PEDIDO*
+
+👤 *Cliente:* ${nome}
+📞 *Telefone:* ${formatarTelefone(telefone)}
+
+📍 *Endereço:*
+${enderecoTexto}
+
+📦 *Itens:*
+${itensTexto}
+
+💰 *Total:* R$ ${totalFinal.toFixed(2)}
+
+🆔 *Pedido:* ${pedidoId}
+`;
+
+    window.open(
+      `https://wa.me/${telefoneEmpresa}?text=${encodeURIComponent(mensagem)}`,
+      "_blank"
+    );
+  }
+
+  /* ================= ENDEREÇO ================= */
 
   function salvarEndereco() {
     if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
@@ -71,9 +116,9 @@ export default function CartModal() {
     setMostrarFormEndereco(false);
   }
 
-  /* ================= FINALIZAR PEDIDO ================= */
+  /* ================= FINALIZAR ================= */
 
-  async function finalizarPedido() {
+  async function finalizarPedido(tipo: FormaPagamento) {
     if (!nome.trim() || !telefone.trim()) {
       alert("Informe nome completo e celular.");
       return;
@@ -89,9 +134,7 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const telefoneFormatado = telefone.startsWith("+")
-        ? telefone
-        : `+55${telefone.replace(/\D/g, "")}`;
+      const telefoneFormatado = formatarTelefone(telefone);
 
       setCliente({
         id: cliente?.id || crypto.randomUUID(),
@@ -104,23 +147,24 @@ export default function CartModal() {
             : 1,
       });
 
-      await addDoc(collection(db, "pedidos"), {
-        cliente: {
-          nome,
-          telefone: telefoneFormatado,
-        },
+      const pedidoRef = await addDoc(collection(db, "pedidos"), {
+        cliente: { nome, telefone: telefoneFormatado },
         endereco: enderecoSelecionado,
-        itens: carrinho.map((item) => ({
-          id: item.id,
-          nome: item.nome,
-          preco: item.preco,
-          quantidade: item.qtd,
+        itens: carrinho.map((i) => ({
+          id: i.id,
+          nome: i.nome,
+          preco: i.preco,
+          quantidade: i.qtd,
         })),
         total: totalFinal,
-        pagamento: { tipo: "pix" },
+        pagamento: { tipo },
         status: "novo",
         createdAt: serverTimestamp(),
       });
+
+      if (tipo === "entrega") {
+        enviarPedidoWhatsApp(pedidoRef.id);
+      }
 
       limparCarrinho();
       setCartOpen(false);
@@ -132,7 +176,7 @@ export default function CartModal() {
     }
   }
 
-  /* ================= RENDER ================= */
+  /* ================= UI ================= */
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -147,7 +191,7 @@ export default function CartModal() {
         {carrinho.map((item) => (
           <div key={item.id} className="flex gap-3 bg-zinc-800 p-3 rounded-xl">
             <Image
-              src={item.imagem || ""}
+              src={item.imagem || "/produtos/placeholder.png"}
               alt={item.nome}
               width={60}
               height={60}
@@ -186,7 +230,8 @@ export default function CartModal() {
               {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
             </p>
             <p className="text-sm text-zinc-300">
-              {enderecoSelecionado.bairro} – {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+              {enderecoSelecionado.bairro} –{" "}
+              {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
             </p>
 
             <button
@@ -200,12 +245,12 @@ export default function CartModal() {
 
         {mostrarFormEndereco && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
-            <input className="input" placeholder="CEP" value={cep} onChange={(e) => setCep(e.target.value)} />
-            <input className="input" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
-            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
-            <input className="input" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
-            <input className="input" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
-            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="CEP" value={cep} onChange={(e) => setCep(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+            <input className="w-full bg-zinc-900 p-2 rounded" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
 
             <button
               onClick={salvarEndereco}
@@ -227,20 +272,28 @@ export default function CartModal() {
 
         {/* TOTAL */}
         <div className="bg-zinc-800 p-3 rounded-xl">
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between font-bold">
             <span>Total</span>
-            <span className="font-bold text-green-400">
+            <span className="text-green-400">
               R$ {totalFinal.toFixed(2)}
             </span>
           </div>
         </div>
 
+        {/* BOTÕES */}
         <button
-          onClick={finalizarPedido}
+          onClick={() => finalizarPedido("entrega")}
           disabled={loading}
           className="w-full bg-green-500 text-black py-3 rounded-xl font-bold"
         >
-          🚚 Finalizar pedido
+          📲 Pagar na entrega (WhatsApp)
+        </button>
+
+        <button
+          onClick={() => alert("Integração Mercado Pago em breve 🚀")}
+          className="w-full bg-blue-500 text-black py-3 rounded-xl font-bold"
+        >
+          💳 Pagar online (Mercado Pago)
         </button>
       </div>
     </div>
