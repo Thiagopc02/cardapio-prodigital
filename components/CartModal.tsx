@@ -23,13 +23,12 @@ export default function CartModal() {
     enderecos,
     adicionarEndereco,
     removerEndereco,
+    selecionarEndereco,
   } = useAddress();
 
   /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
-
-  // 🔑 iPhone-safe
   const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
     !enderecoSelecionado
   );
@@ -118,7 +117,7 @@ ${itensTexto}
       .slice(0, 15);
   }
 
-  /* ================= CEP ================= */
+  /* ================= BUSCAR CEP ================= */
 
   async function buscarCep(valor: string) {
     const limpo = valor.replace(/\D/g, "");
@@ -159,6 +158,13 @@ ${itensTexto}
       uf,
       padrao: true,
     });
+
+    setCep("");
+    setRua("");
+    setNumero("");
+    setBairro("");
+    setCidade("");
+    setUf("");
 
     setMostrarFormEndereco(false);
   }
@@ -268,33 +274,51 @@ ${itensTexto}
           />
         </div>
 
-        {/* ENDEREÇO SELECIONADO */}
-        {enderecoSelecionado && !mostrarFormEndereco && (
-          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3 space-y-2">
-            <p className="font-semibold">
-              {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
-            </p>
-            <p className="text-sm text-zinc-300">
-              {enderecoSelecionado.bairro} –{" "}
-              {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+        {/* ENDEREÇOS SALVOS */}
+        {enderecos.length > 0 && !mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            <p className="text-sm font-semibold text-zinc-300">
+              📍 Endereços salvos
             </p>
 
-            <button
-              onClick={() => setMostrarFormEndereco(true)}
-              className="text-sm text-green-400 font-semibold"
-            >
-              ➕ Adicionar novo endereço
-            </button>
+            {enderecos.map((end) => (
+              <div
+                key={end.id}
+                className={`flex justify-between items-center p-2 rounded-lg border ${
+                  end.padrao
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-zinc-700"
+                }`}
+              >
+                <button
+                  onClick={() => selecionarEndereco(end.id)}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm font-semibold">
+                    {end.rua}, {end.numero}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {end.bairro} – {end.cidade}/{end.uf}
+                  </p>
+                </button>
 
-            <button
-              onClick={() => {
-                removerEndereco(enderecoSelecionado.id);
-                setMostrarFormEndereco(true);
-              }}
-              className="text-sm text-red-400 font-semibold"
-            >
-              🗑 Excluir endereço
-            </button>
+                <button
+                  onClick={() => removerEndereco(end.id)}
+                  className="text-xs text-red-400 ml-2"
+                >
+                  Excluir
+                </button>
+              </div>
+            ))}
+
+            {enderecos.length < 3 && (
+              <button
+                onClick={() => setMostrarFormEndereco(true)}
+                className="w-full text-sm text-green-400 font-semibold mt-2"
+              >
+                ➕ Adicionar novo endereço
+              </button>
+            )}
           </div>
         )}
 

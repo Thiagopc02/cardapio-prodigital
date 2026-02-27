@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 /* ================= TIPOS ================= */
 
@@ -33,30 +33,33 @@ const AddressContext = createContext<AddressContextType | null>(null);
 
 const STORAGE_KEY = "enderecos";
 
-function carregarEnderecos(): Endereco[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
-}
-
-function salvarEnderecos(enderecos: Endereco[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(enderecos));
-}
-
 /* ================= PROVIDER ================= */
 
-export function AddressProvider({ children }: { children: React.ReactNode }) {
-  const [enderecos, setEnderecos] = useState<Endereco[]>(carregarEnderecos);
+export function AddressProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  /* ✅ Lazy init (resolve o erro do ESLint) */
+  const [enderecos, setEnderecos] = useState<Endereco[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  /* 🔁 Persistência */
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(enderecos));
+  }, [enderecos]);
 
   const enderecoSelecionado =
     enderecos.find((e) => e.padrao) || null;
 
-  /* ================= ADICIONAR (SEM SUBSTITUIR) ================= */
+  /* ================= ADICIONAR ================= */
 
   function adicionarEndereco(endereco: Endereco) {
     setEnderecos((prev) => {
@@ -66,26 +69,22 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
 
       const novoEndereco: Endereco = {
         ...endereco,
-        padrao: !existePadrao, // só o primeiro vira padrão
+        padrao: !existePadrao,
       };
 
-      const novaLista = [...prev, novoEndereco];
-      salvarEnderecos(novaLista);
-      return novaLista;
+      return [...prev, novoEndereco];
     });
   }
 
   /* ================= SELECIONAR ================= */
 
   function selecionarEndereco(id: string) {
-    setEnderecos((prev) => {
-      const lista = prev.map((e) => ({
+    setEnderecos((prev) =>
+      prev.map((e) => ({
         ...e,
         padrao: e.id === id,
-      }));
-      salvarEnderecos(lista);
-      return lista;
-    });
+      }))
+    );
   }
 
   /* ================= REMOVER ================= */
@@ -94,12 +93,13 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
     setEnderecos((prev) => {
       const lista = prev.filter((e) => e.id !== id);
 
-      // se removeu o padrão, define outro
       if (!lista.some((e) => e.padrao) && lista.length > 0) {
-        lista[0].padrao = true;
+        return lista.map((e, index) => ({
+          ...e,
+          padrao: index === 0,
+        }));
       }
 
-      salvarEnderecos(lista);
       return lista;
     });
   }
