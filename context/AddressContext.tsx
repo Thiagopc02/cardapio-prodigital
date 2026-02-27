@@ -20,7 +20,6 @@ type AddressContextType = {
   enderecos: Endereco[];
   enderecoSelecionado: Endereco | null;
   adicionarEndereco: (endereco: Endereco) => void;
-  atualizarEndereco: (endereco: Endereco) => void;
   removerEndereco: (id: string) => void;
   selecionarEndereco: (id: string) => void;
   limparEnderecos: () => void;
@@ -52,73 +51,27 @@ function salvarEnderecos(enderecos: Endereco[]) {
 /* ================= PROVIDER ================= */
 
 export function AddressProvider({ children }: { children: React.ReactNode }) {
-  const [enderecos, setEnderecos] = useState<Endereco[]>(() =>
-    carregarEnderecos()
-  );
+  const [enderecos, setEnderecos] = useState<Endereco[]>(carregarEnderecos);
 
   const enderecoSelecionado =
     enderecos.find((e) => e.padrao) || null;
 
-  /* ================= ADICIONAR ================= */
+  /* ================= ADICIONAR (SEM SUBSTITUIR) ================= */
 
   function adicionarEndereco(endereco: Endereco) {
     setEnderecos((prev) => {
-      // 🔒 Limite de 3 endereços
       if (prev.length >= 3) return prev;
 
-      // Remove padrão anterior
-      const listaSemPadrao = prev.map((e) => ({
-        ...e,
-        padrao: false,
-      }));
+      const existePadrao = prev.some((e) => e.padrao);
 
       const novoEndereco: Endereco = {
         ...endereco,
-        padrao: true,
+        padrao: !existePadrao, // só o primeiro vira padrão
       };
 
-      const novaLista = [...listaSemPadrao, novoEndereco];
+      const novaLista = [...prev, novoEndereco];
       salvarEnderecos(novaLista);
       return novaLista;
-    });
-  }
-
-  /* ================= ATUALIZAR ================= */
-
-  function atualizarEndereco(endereco: Endereco) {
-    setEnderecos((prev) => {
-      let lista = prev.map((e) =>
-        e.id === endereco.id ? endereco : e
-      );
-
-      if (endereco.padrao) {
-        lista = lista.map((e) => ({
-          ...e,
-          padrao: e.id === endereco.id,
-        }));
-      }
-
-      salvarEnderecos(lista);
-      return lista;
-    });
-  }
-
-  /* ================= REMOVER ================= */
-
-  function removerEndereco(id: string) {
-    setEnderecos((prev) => {
-      let lista = prev.filter((e) => e.id !== id);
-
-      // 🔄 Se removeu o padrão, define outro como padrão
-      if (!lista.some((e) => e.padrao) && lista.length > 0) {
-        lista = lista.map((e, index) => ({
-          ...e,
-          padrao: index === 0,
-        }));
-      }
-
-      salvarEnderecos(lista);
-      return lista;
     });
   }
 
@@ -135,13 +88,27 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  /* ================= REMOVER ================= */
+
+  function removerEndereco(id: string) {
+    setEnderecos((prev) => {
+      const lista = prev.filter((e) => e.id !== id);
+
+      // se removeu o padrão, define outro
+      if (!lista.some((e) => e.padrao) && lista.length > 0) {
+        lista[0].padrao = true;
+      }
+
+      salvarEnderecos(lista);
+      return lista;
+    });
+  }
+
   /* ================= LIMPAR ================= */
 
   function limparEnderecos() {
     setEnderecos([]);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   return (
@@ -150,7 +117,6 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
         enderecos,
         enderecoSelecionado,
         adicionarEndereco,
-        atualizarEndereco,
         removerEndereco,
         selecionarEndereco,
         limparEnderecos,
@@ -171,7 +137,6 @@ export function useAddress(): AddressContextType {
       enderecos: [],
       enderecoSelecionado: null,
       adicionarEndereco: () => {},
-      atualizarEndereco: () => {},
       removerEndereco: () => {},
       selecionarEndereco: () => {},
       limparEnderecos: () => {},
