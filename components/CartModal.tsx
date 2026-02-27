@@ -221,9 +221,12 @@ ${pedidoId}
         createdAt: serverTimestamp(),
       });
 
+      localStorage.setItem("ultimoPedidoId", pedidoRef.id);
+
       if (tipo === "entrega") {
-        localStorage.setItem("ultimoPedidoId", pedidoRef.id);
         window.location.href = gerarLinkWhatsApp(pedidoRef.id);
+      } else {
+        alert("Integração Mercado Pago em breve 🚀");
       }
 
       limparCarrinho();
@@ -371,6 +374,14 @@ ${pedidoId}
           className="w-full bg-green-500 text-black py-3 rounded-xl font-bold"
         >
           📲 Pagar na entrega (WhatsApp)
+        </button>
+
+        <button
+          onClick={() => finalizarPedido("mercadopago")}
+          disabled={loading}
+          className="w-full bg-blue-500 text-black py-3 rounded-xl font-bold"
+        >
+          💳 Pagar online (Mercado Pago)
         </button>
       </div>
     </div>
