@@ -78,7 +78,6 @@ export default function CartModal() {
 ${enderecoSelecionado.bairro} – ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
       : "Retirada no local";
 
-    // ⚠️ Emojis em linhas separadas (WhatsApp-safe)
     const mensagem = `
 🟢 *NOVO PEDIDO*
 
@@ -207,6 +206,7 @@ ${pedidoId}
       });
 
       const pedidoRef = await addDoc(collection(db, "pedidos"), {
+        clienteId: telefoneFormatado,
         cliente: { nome, telefone: telefoneFormatado },
         endereco: enderecoSelecionado,
         itens: carrinho.map((i) => ({
@@ -222,6 +222,7 @@ ${pedidoId}
       });
 
       if (tipo === "entrega") {
+        localStorage.setItem("ultimoPedidoId", pedidoRef.id);
         window.location.href = gerarLinkWhatsApp(pedidoRef.id);
       }
 
@@ -280,20 +281,8 @@ ${pedidoId}
           />
         </div>
 
-        {/* NENHUM ENDEREÇO */}
-        {enderecos.length === 0 && !mostrarFormEndereco && (
-          <div className="bg-zinc-800 p-3 rounded-xl">
-            <button
-              onClick={() => setMostrarFormEndereco(true)}
-              className="w-full text-sm text-green-400 font-semibold"
-            >
-              ➕ Adicionar endereço
-            </button>
-          </div>
-        )}
-
-        {/* ENDEREÇOS SALVOS */}
-        {enderecos.length > 0 && !mostrarFormEndereco && (
+        {/* ENDEREÇOS */}
+        {!mostrarFormEndereco && enderecos.length > 0 && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
             <p className="text-sm font-semibold text-zinc-300">
               📍 Endereços salvos
@@ -303,7 +292,7 @@ ${pedidoId}
               <div
                 key={end.id}
                 className={`flex justify-between items-center p-2 rounded-lg border ${
-                  end.padrao
+                  enderecoSelecionado?.id === end.id
                     ? "border-green-500 bg-green-500/10"
                     : "border-zinc-700"
                 }`}
@@ -329,14 +318,12 @@ ${pedidoId}
               </div>
             ))}
 
-            {enderecos.length < 3 && (
-              <button
-                onClick={() => setMostrarFormEndereco(true)}
-                className="w-full text-sm text-green-400 font-semibold mt-2"
-              >
-                ➕ Adicionar novo endereço
-              </button>
-            )}
+            <button
+              onClick={() => setMostrarFormEndereco(true)}
+              className="w-full text-sm text-green-400 font-semibold mt-2"
+            >
+              ➕ Adicionar novo endereço
+            </button>
           </div>
         )}
 
@@ -366,15 +353,6 @@ ${pedidoId}
             >
               Salvar endereço
             </button>
-
-            {enderecoSelecionado && (
-              <button
-                onClick={() => setMostrarFormEndereco(false)}
-                className="w-full py-2 text-sm text-green-400 font-semibold border border-green-500/40 rounded-xl"
-              >
-                ↩ Usar endereço já salvo
-              </button>
-            )}
           </div>
         )}
 
@@ -386,20 +364,13 @@ ${pedidoId}
           </span>
         </div>
 
-        {/* PAGAMENTOS */}
+        {/* PAGAMENTO */}
         <button
           onClick={() => finalizarPedido("entrega")}
           disabled={loading}
           className="w-full bg-green-500 text-black py-3 rounded-xl font-bold"
         >
           📲 Pagar na entrega (WhatsApp)
-        </button>
-
-        <button
-          onClick={() => alert("Integração Mercado Pago em breve 🚀")}
-          className="w-full bg-blue-500 text-black py-3 rounded-xl font-bold"
-        >
-          💳 Pagar online (Mercado Pago)
         </button>
       </div>
     </div>
