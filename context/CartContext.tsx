@@ -28,7 +28,7 @@ const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
-  const [cartOpen, setCartOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false); // 🔒 fechado por padrão
 
   function adicionarProduto(produto: Produto) {
     setCarrinho((prev) => {
@@ -60,6 +60,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   function limparCarrinho() {
     setCarrinho([]);
+    setCartOpen(false); // 🔒 boa prática: fecha o carrinho ao limpar
   }
 
   const total = carrinho.reduce(

@@ -5,6 +5,9 @@ import { useCart } from "@/context/CartContext";
 export default function FloatingCart() {
   const { carrinho, setCartOpen, cartOpen } = useCart();
 
+  // 🔒 Não mostra o botão se:
+  // - não tem itens no carrinho
+  // - o carrinho já está aberto
   if (carrinho.length === 0 || cartOpen) return null;
 
   const totalItens = carrinho.reduce(
@@ -23,7 +26,7 @@ export default function FloatingCart() {
         flex items-center justify-center
         text-black text-xl
         shadow-2xl
-        z-[9999]
+        z-9999
       "
       aria-label="Abrir carrinho"
     >
