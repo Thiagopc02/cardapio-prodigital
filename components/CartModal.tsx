@@ -78,21 +78,27 @@ export default function CartModal() {
 ${enderecoSelecionado.bairro} – ${enderecoSelecionado.cidade}/${enderecoSelecionado.uf}`
       : "Retirada no local";
 
+    // ⚠️ Emojis em linhas separadas (WhatsApp-safe)
     const mensagem = `
-🛒 *NOVO PEDIDO*
+🟢 *NOVO PEDIDO*
 
-👤 *Cliente:* ${nome}
-📞 *Telefone:* ${formatarTelefone(telefone)}
+👤 Cliente
+${nome}
 
-📍 *Endereço:*
+📞 Telefone
+${formatarTelefone(telefone)}
+
+📍 Endereço
 ${enderecoTexto}
 
-📦 *Itens:*
+📦 Itens
 ${itensTexto}
 
-💰 *Total:* R$ ${totalFinal.toFixed(2)}
+💰 Total
+R$ ${totalFinal.toFixed(2)}
 
-🆔 *Pedido:* ${pedidoId}
+🆔 Pedido
+${pedidoId}
 `;
 
     return `https://wa.me/${telefoneEmpresa}?text=${encodeURIComponent(
