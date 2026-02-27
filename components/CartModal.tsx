@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 import { db } from "@/firebase/config";
@@ -26,48 +26,27 @@ export default function CartModal() {
   } = useCart();
 
   const { cliente, setCliente } = useCliente();
-
   const {
-    enderecos,
     enderecoSelecionado,
-    selecionarEndereco,
     adicionarEndereco,
+    selecionarEndereco,
   } = useAddress();
 
   /* ================= STATE ================= */
   const [loading, setLoading] = useState(false);
   const [formaPagamento] = useState<FormaPagamento>("pix");
 
-  const [novoEndereco, setNovoEndereco] = useState<Omit<Endereco, "id">>({
-    cep: "",
-    rua: "",
-    numero: "",
-    bairro: "",
-    complemento: "",
-    cidade: "",
-    uf: "",
-    padrao: true,
-  });
+  // dados do cliente
+  const [nome, setNome] = useState(cliente?.nome || "");
+  const [telefone, setTelefone] = useState(cliente?.telefone || "");
 
-  /* ================= BUSCA CEP ================= */
-  useEffect(() => {
-    const cepLimpo = novoEndereco.cep.replace(/\D/g, "");
-    if (cepLimpo.length !== 8) return;
-
-    fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.erro) {
-          setNovoEndereco((prev) => ({
-            ...prev,
-            rua: data.logradouro || "",
-            bairro: data.bairro || "",
-            cidade: data.localidade || "",
-            uf: data.uf || "",
-          }));
-        }
-      });
-  }, [novoEndereco.cep]);
+  // endereço
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("");
 
   /* ================= DESCONTO ================= */
   const temDesconto =
@@ -80,15 +59,46 @@ export default function CartModal() {
   /* ================= GUARD ================= */
   if (!cartOpen) return null;
 
-  /* ================= FINALIZAR ================= */
+  /* ================= SALVAR ENDEREÇO ================= */
+  function salvarEndereco() {
+    if (!nome || !telefone || !cep || !rua || !numero || !bairro) {
+      alert("Preencha nome, telefone e endereço completo.");
+      return;
+    }
+
+    const novoEndereco: Endereco = {
+      id: `end_${Date.now()}`,
+      cep,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      uf,
+      padrao: true,
+    };
+
+    adicionarEndereco(novoEndereco);
+    selecionarEndereco(novoEndereco.id);
+
+    // salva/atualiza cliente
+    setCliente({
+      id: cliente?.id || `cli_${Date.now()}`,
+      nome,
+      telefone,
+      cadastrado: true,
+      comprasComDesconto: cliente?.comprasComDesconto || 0,
+    });
+  }
+
+  /* ================= FINALIZAR PEDIDO ================= */
   async function finalizarPedido() {
     if (!cliente) {
-      alert("Identifique-se para finalizar o pedido.");
+      alert("Informe seus dados.");
       return;
     }
 
     if (!enderecoSelecionado) {
-      alert("Selecione um endereço para entrega.");
+      alert("Informe o endereço de entrega.");
       return;
     }
 
@@ -97,24 +107,11 @@ export default function CartModal() {
     try {
       setLoading(true);
 
-      const telefoneCliente = cliente.telefone.startsWith("+")
-        ? cliente.telefone
-        : `+55${cliente.telefone.replace(/\D/g, "")}`;
-
-      setCliente({
-        ...cliente,
-        telefone: telefoneCliente,
-        comprasComDesconto:
-          typeof cliente.comprasComDesconto === "number"
-            ? cliente.comprasComDesconto + 1
-            : 1,
-      });
-
-      const docRef = await addDoc(collection(db, "pedidos"), {
+      await addDoc(collection(db, "pedidos"), {
         cliente: {
           id: cliente.id,
           nome: cliente.nome,
-          telefone: telefoneCliente,
+          telefone: cliente.telefone,
         },
         endereco: enderecoSelecionado,
         itens: carrinho.map((item) => ({
@@ -131,9 +128,6 @@ export default function CartModal() {
 
       limparCarrinho();
       setCartOpen(false);
-
-      // 👉 Redireciona para acompanhamento do pedido
-      window.location.href = `/status?id=${docRef.id}`;
     } catch (error) {
       console.error(error);
       alert("Erro ao finalizar pedido.");
@@ -163,11 +157,7 @@ export default function CartModal() {
             className="flex gap-3 bg-zinc-800 p-3 rounded-xl mb-2"
           >
             <Image
-              src={
-                item.imagem && item.imagem.startsWith("/")
-                  ? item.imagem
-                  : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><rect width='100%' height='100%' fill='%23333333'/><text x='50%' y='50%' fill='%23999999' font-size='10' text-anchor='middle' dominant-baseline='middle'>SEM IMAGEM</text></svg>"
-              }
+              src={item.imagem}
               alt={item.nome}
               width={60}
               height={60}
@@ -185,74 +175,68 @@ export default function CartModal() {
         ))}
 
         {/* ENDEREÇO */}
-        <div className="mt-4 space-y-2">
-          <h3 className="font-semibold">📍 Endereço de entrega</h3>
+        <div className="mt-4">
+          <p className="font-semibold mb-2">📍 Endereço de entrega</p>
 
-          {enderecos.length > 0 ? (
-            enderecos.map((e) => (
-              <button
-                key={e.id}
-                onClick={() => selecionarEndereco(e.id)}
-                className={`w-full text-left p-3 rounded-xl border ${
-                  e.padrao
-                    ? "border-green-500 bg-green-500/10"
-                    : "border-zinc-700 bg-zinc-800"
-                }`}
-              >
-                <p className="text-sm font-semibold">
-                  {e.rua}, {e.numero}
-                </p>
-                <p className="text-xs text-zinc-400">
-                  {e.bairro} – {e.cidade}/{e.uf}
-                </p>
-              </button>
-            ))
-          ) : (
+          {!enderecoSelecionado ? (
             <div className="space-y-2">
               <input
+                className="w-full bg-zinc-800 p-2 rounded"
+                placeholder="Nome completo"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+              />
+
+              <input
+                className="w-full bg-zinc-800 p-2 rounded"
+                placeholder="Telefone"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+              />
+
+              <input
+                className="w-full bg-zinc-800 p-2 rounded"
                 placeholder="CEP"
-                className="w-full p-2 rounded bg-zinc-800"
-                value={novoEndereco.cep}
-                onChange={(e) =>
-                  setNovoEndereco({ ...novoEndereco, cep: e.target.value })
-                }
+                value={cep}
+                onChange={(e) => setCep(e.target.value)}
               />
+
               <input
+                className="w-full bg-zinc-800 p-2 rounded"
                 placeholder="Rua"
-                className="w-full p-2 rounded bg-zinc-800"
-                value={novoEndereco.rua}
-                onChange={(e) =>
-                  setNovoEndereco({ ...novoEndereco, rua: e.target.value })
-                }
+                value={rua}
+                onChange={(e) => setRua(e.target.value)}
               />
+
               <input
+                className="w-full bg-zinc-800 p-2 rounded"
                 placeholder="Número"
-                className="w-full p-2 rounded bg-zinc-800"
-                value={novoEndereco.numero}
-                onChange={(e) =>
-                  setNovoEndereco({ ...novoEndereco, numero: e.target.value })
-                }
+                value={numero}
+                onChange={(e) => setNumero(e.target.value)}
               />
+
               <input
+                className="w-full bg-zinc-800 p-2 rounded"
                 placeholder="Bairro"
-                className="w-full p-2 rounded bg-zinc-800"
-                value={novoEndereco.bairro}
-                onChange={(e) =>
-                  setNovoEndereco({ ...novoEndereco, bairro: e.target.value })
-                }
+                value={bairro}
+                onChange={(e) => setBairro(e.target.value)}
               />
 
               <button
-                onClick={() =>
-                  adicionarEndereco({
-                    ...novoEndereco,
-                    id: crypto.randomUUID(),
-                  })
-                }
-                className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+                onClick={salvarEndereco}
+                className="w-full bg-blue-500 text-black py-2 rounded font-bold"
               >
                 Salvar endereço
               </button>
+            </div>
+          ) : (
+            <div className="bg-green-500/10 border border-green-500 rounded-xl p-3">
+              <p className="font-semibold">
+                {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
+              </p>
+              <p className="text-sm text-zinc-300">
+                {enderecoSelecionado.bairro} – {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
+              </p>
             </div>
           )}
         </div>
@@ -277,19 +261,14 @@ export default function CartModal() {
           </div>
         </div>
 
-        {!cliente ? (
-          <div className="mt-4 bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-xl text-sm">
-            ⚠️ Identifique-se para finalizar o pedido.
-          </div>
-        ) : (
-          <button
-            disabled={!enderecoSelecionado || loading}
-            onClick={finalizarPedido}
-            className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-40"
-          >
-            🚚 Finalizar pedido
-          </button>
-        )}
+        {/* FINALIZAR */}
+        <button
+          disabled={loading || !enderecoSelecionado}
+          onClick={finalizarPedido}
+          className="w-full mt-4 bg-green-500 text-black py-3 rounded-xl font-bold disabled:opacity-50"
+        >
+          🚚 Finalizar pedido
+        </button>
       </div>
     </div>
   );
