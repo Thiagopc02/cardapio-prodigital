@@ -59,17 +59,31 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
   const enderecoSelecionado =
     enderecos.find((e) => e.padrao) || null;
 
+  /* ================= ADICIONAR ================= */
+
   function adicionarEndereco(endereco: Endereco) {
     setEnderecos((prev) => {
-      const lista = endereco.padrao
-        ? prev.map((e) => ({ ...e, padrao: false }))
-        : prev;
+      // 🔒 Limite de 3 endereços
+      if (prev.length >= 3) return prev;
 
-      const novaLista = [...lista, endereco];
+      // Remove padrão anterior
+      const listaSemPadrao = prev.map((e) => ({
+        ...e,
+        padrao: false,
+      }));
+
+      const novoEndereco: Endereco = {
+        ...endereco,
+        padrao: true,
+      };
+
+      const novaLista = [...listaSemPadrao, novoEndereco];
       salvarEnderecos(novaLista);
       return novaLista;
     });
   }
+
+  /* ================= ATUALIZAR ================= */
 
   function atualizarEndereco(endereco: Endereco) {
     setEnderecos((prev) => {
@@ -89,13 +103,26 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
     });
   }
 
+  /* ================= REMOVER ================= */
+
   function removerEndereco(id: string) {
     setEnderecos((prev) => {
-      const lista = prev.filter((e) => e.id !== id);
+      let lista = prev.filter((e) => e.id !== id);
+
+      // 🔄 Se removeu o padrão, define outro como padrão
+      if (!lista.some((e) => e.padrao) && lista.length > 0) {
+        lista = lista.map((e, index) => ({
+          ...e,
+          padrao: index === 0,
+        }));
+      }
+
       salvarEnderecos(lista);
       return lista;
     });
   }
+
+  /* ================= SELECIONAR ================= */
 
   function selecionarEndereco(id: string) {
     setEnderecos((prev) => {
@@ -107,6 +134,8 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
       return lista;
     });
   }
+
+  /* ================= LIMPAR ================= */
 
   function limparEnderecos() {
     setEnderecos([]);
@@ -132,12 +161,11 @@ export function AddressProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ================= HOOK (APP ROUTER SAFE) ================= */
+/* ================= HOOK SAFE ================= */
 
 export function useAddress(): AddressContextType {
   const ctx = useContext(AddressContext);
 
-  // ❗ NUNCA lançar erro no App Router
   if (!ctx) {
     return {
       enderecos: [],
