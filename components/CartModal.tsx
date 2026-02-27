@@ -101,6 +101,47 @@ ${itensTexto}
     )}`;
   }
 
+  /* ================= MÁSCARAS ================= */
+
+  function mascaraCep(valor: string) {
+    return valor
+      .replace(/\D/g, "")
+      .replace(/^(\d{5})(\d)/, "$1-$2")
+      .slice(0, 9);
+  }
+
+  function mascaraTelefone(valor: string) {
+    return valor
+      .replace(/\D/g, "")
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
+      .slice(0, 15);
+  }
+
+  /* ================= BUSCA CEP ================= */
+
+  async function buscarCep(valor: string) {
+    const cepLimpo = valor.replace(/\D/g, "");
+
+    if (cepLimpo.length !== 8) return;
+
+    try {
+      const res = await fetch(
+        `https://viacep.com.br/ws/${cepLimpo}/json/`
+      );
+      const data = await res.json();
+
+      if (data.erro) return;
+
+      setRua(data.logradouro || "");
+      setBairro(data.bairro || "");
+      setCidade(data.localidade || "");
+      setUf(data.uf || "");
+    } catch (err) {
+      console.error("Erro ao buscar CEP", err);
+    }
+  }
+
   /* ================= ENDEREÇO ================= */
 
   function salvarEndereco() {
@@ -231,52 +272,30 @@ ${itensTexto}
             className="w-full bg-zinc-900 p-2 rounded"
             placeholder="Celular"
             value={telefone}
-            onChange={(e) => setTelefone(e.target.value)}
+            onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
             inputMode="numeric"
           />
         </div>
 
-        {/* ENDEREÇO SELECIONADO */}
-        {enderecoSelecionado && !mostrarFormEndereco && (
-          <div className="bg-green-500/10 border border-green-500 rounded-xl p-3 space-y-2">
-            <div>
-              <p className="font-semibold">
-                {enderecoSelecionado.rua}, {enderecoSelecionado.numero}
-              </p>
-              <p className="text-sm text-zinc-300">
-                {enderecoSelecionado.bairro} –{" "}
-                {enderecoSelecionado.cidade}/{enderecoSelecionado.uf}
-              </p>
-            </div>
-
-            <button
-              onClick={() => setMostrarFormEndereco(true)}
-              className="text-sm text-green-400 font-semibold"
-            >
-              ➕ Adicionar novo endereço
-            </button>
-
-            <button
-              onClick={() => {
-                removerEndereco(enderecoSelecionado.id);
-                setMostrarFormEndereco(true);
-              }}
-              className="text-sm text-red-400 font-semibold"
-            >
-              🗑 Excluir endereço
-            </button>
-          </div>
-        )}
-
         {/* FORM ENDEREÇO */}
         {mostrarFormEndereco && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
-            <input className="input" placeholder="CEP" value={cep} onChange={(e) => setCep(e.target.value)} />
+            <input
+              className="input"
+              placeholder="CEP"
+              value={cep}
+              onChange={(e) => {
+                const v = mascaraCep(e.target.value);
+                setCep(v);
+                buscarCep(v);
+              }}
+              inputMode="numeric"
+            />
             <input className="input" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
-            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value)} />
+            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} />
             <input className="input" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
             <input className="input" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
-            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
+            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
 
             <button
               onClick={salvarEndereco}
