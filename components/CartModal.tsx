@@ -18,14 +18,41 @@ type FormaPagamento = "entrega" | "mercadopago";
 export default function CartModal() {
   const { carrinho, total, cartOpen, setCartOpen, limparCarrinho } = useCart();
   const { cliente, setCliente } = useCliente();
-  const { enderecoSelecionado } = useAddress();
+  const {
+    enderecoSelecionado,
+    enderecos,
+    adicionarEndereco,
+    removerEndereco,
+    selecionarEndereco,
+  } = useAddress();
+
+  /* ================= STATE ================= */
 
   const [loading, setLoading] = useState(false);
+  const [mostrarFormEndereco, setMostrarFormEndereco] = useState(
+    !enderecoSelecionado
+  );
 
+  // Cliente
   const [nome, setNome] = useState(cliente?.nome || "");
   const [telefone, setTelefone] = useState(cliente?.telefone || "");
 
-  const totalFinal = total;
+  // Endereço (form)
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("");
+
+  /* ================= DESCONTO ================= */
+
+  const temDesconto =
+    !!cliente &&
+    typeof cliente.comprasComDesconto === "number" &&
+    cliente.comprasComDesconto < 2;
+
+  const totalFinal = temDesconto ? total * 0.95 : total;
 
   if (!cartOpen) return null;
 
@@ -34,14 +61,6 @@ export default function CartModal() {
   function formatarTelefone(tel: string) {
     const limpo = tel.replace(/\D/g, "");
     return limpo.startsWith("55") ? `+${limpo}` : `+55${limpo}`;
-  }
-
-  function mascaraTelefone(v: string) {
-    return v
-      .replace(/\D/g, "")
-      .replace(/^(\d{2})(\d)/, "($1) $2")
-      .replace(/(\d{5})(\d)/, "$1-$2")
-      .slice(0, 15);
   }
 
   function gerarLinkWhatsApp(pedidoId: string) {
@@ -86,6 +105,75 @@ ${pedidoId}
     )}`;
   }
 
+  /* ================= MÁSCARAS ================= */
+
+  function mascaraCep(v: string) {
+    return v
+      .replace(/\D/g, "")
+      .replace(/^(\d{5})(\d)/, "$1-$2")
+      .slice(0, 9);
+  }
+
+  function mascaraTelefone(v: string) {
+    return v
+      .replace(/\D/g, "")
+      .replace(/^(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d)/, "$1-$2")
+      .slice(0, 15);
+  }
+
+  /* ================= BUSCAR CEP ================= */
+
+  async function buscarCep(valor: string) {
+    const limpo = valor.replace(/\D/g, "");
+    if (limpo.length !== 8) return;
+
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+
+      setRua(data.logradouro || "");
+      setBairro(data.bairro || "");
+      setCidade(data.localidade || "");
+      setUf(data.uf || "");
+    } catch {}
+  }
+
+  /* ================= ENDEREÇO ================= */
+
+  function salvarEndereco() {
+    if (enderecos.length >= 3) {
+      alert("Você pode cadastrar no máximo 3 endereços.");
+      return;
+    }
+
+    if (!cep || !rua || !numero || !bairro || !cidade || !uf) {
+      alert("Preencha todos os campos do endereço.");
+      return;
+    }
+
+    adicionarEndereco({
+      id: crypto.randomUUID(),
+      cep,
+      rua,
+      numero,
+      bairro,
+      cidade,
+      uf,
+      padrao: true,
+    });
+
+    setCep("");
+    setRua("");
+    setNumero("");
+    setBairro("");
+    setCidade("");
+    setUf("");
+
+    setMostrarFormEndereco(false);
+  }
+
   /* ================= FINALIZAR ================= */
 
   async function finalizarPedido(tipo: FormaPagamento) {
@@ -107,19 +195,19 @@ ${pedidoId}
       setLoading(true);
 
       setCliente({
-  id: cliente?.id || crypto.randomUUID(),
-  nome,
-  telefone: telefoneFormatado,
-  cadastrado: true,
-  comprasComDesconto: cliente?.comprasComDesconto ?? 0,
-});
+        id: cliente?.id || crypto.randomUUID(),
+        nome,
+        telefone: telefoneFormatado,
+        cadastrado: true,
+        comprasComDesconto:
+          typeof cliente?.comprasComDesconto === "number"
+            ? cliente.comprasComDesconto + 1
+            : 1,
+      });
 
       const pedidoRef = await addDoc(collection(db, "pedidos"), {
         clienteId: telefoneFormatado,
-        cliente: {
-          nome,
-          telefone: telefoneFormatado,
-        },
+        cliente: { nome, telefone: telefoneFormatado },
         endereco: enderecoSelecionado,
         itens: carrinho.map((i) => ({
           id: i.id,
@@ -128,7 +216,7 @@ ${pedidoId}
           quantidade: i.qtd,
         })),
         total: totalFinal,
-        pagamento: tipo,
+        pagamento: { tipo },
         status: "novo",
         createdAt: serverTimestamp(),
       });
@@ -158,7 +246,7 @@ ${pedidoId}
         onClick={() => setCartOpen(false)}
       />
 
-      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 space-y-4">
+      <div className="relative bg-zinc-900 w-full max-w-md rounded-t-2xl p-4 max-h-[90vh] overflow-y-auto space-y-4">
         <h2 className="font-bold text-lg">🛒 Seu carrinho</h2>
 
         {carrinho.map((item) => (
@@ -180,6 +268,7 @@ ${pedidoId}
           </div>
         ))}
 
+        {/* CLIENTE */}
         <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
           <input
             className="w-full bg-zinc-900 p-2 rounded"
@@ -192,9 +281,125 @@ ${pedidoId}
             placeholder="Celular"
             value={telefone}
             onChange={(e) => setTelefone(mascaraTelefone(e.target.value))}
+            inputMode="numeric"
           />
         </div>
 
+        {/* ENDEREÇOS SALVOS */}
+        {!mostrarFormEndereco && enderecos.length > 0 && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            <p className="text-sm font-semibold text-zinc-300">
+              📍 Endereços salvos
+            </p>
+
+            {enderecos.map((end) => (
+              <div
+                key={end.id}
+                className={`flex justify-between items-center p-2 rounded-lg border ${
+                  enderecoSelecionado?.id === end.id
+                    ? "border-green-500 bg-green-500/10"
+                    : "border-zinc-700"
+                }`}
+              >
+                <button
+                  onClick={() => selecionarEndereco(end.id)}
+                  className="flex-1 text-left"
+                >
+                  <p className="text-sm font-semibold">
+                    {end.rua}, {end.numero}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {end.bairro} – {end.cidade}/{end.uf}
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => removerEndereco(end.id)}
+                  className="text-xs text-red-400 ml-2"
+                >
+                  Excluir
+                </button>
+              </div>
+            ))}
+
+            <button
+              onClick={() => {
+                selecionarEndereco(null);
+                setMostrarFormEndereco(true);
+              }}
+              className="w-full text-sm text-green-400 font-semibold mt-2"
+            >
+              ➕ Adicionar novo endereço
+            </button>
+          </div>
+        )}
+
+        {/* FORM ENDEREÇO */}
+        {mostrarFormEndereco && (
+          <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            {enderecos.length > 0 && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full text-sm text-green-400 font-semibold mb-2"
+              >
+                ⬅ Usar endereço salvo
+              </button>
+            )}
+
+            <input
+              className="input"
+              placeholder="CEP"
+              value={cep}
+              onChange={(e) => {
+                const v = mascaraCep(e.target.value);
+                setCep(v);
+                buscarCep(v);
+              }}
+              inputMode="numeric"
+            />
+            <input
+              className="input"
+              placeholder="Rua"
+              value={rua}
+              onChange={(e) => setRua(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Número"
+              value={numero}
+              onChange={(e) =>
+                setNumero(e.target.value.replace(/\D/g, ""))
+              }
+            />
+            <input
+              className="input"
+              placeholder="Bairro"
+              value={bairro}
+              onChange={(e) => setBairro(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Cidade"
+              value={cidade}
+              onChange={(e) => setCidade(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="UF"
+              value={uf}
+              onChange={(e) => setUf(e.target.value.toUpperCase())}
+            />
+
+            <button
+              onClick={salvarEndereco}
+              className="w-full bg-blue-500 text-black py-2 rounded-xl font-bold"
+            >
+              Salvar endereço
+            </button>
+          </div>
+        )}
+
+        {/* TOTAL */}
         <div className="bg-zinc-800 p-3 rounded-xl flex justify-between font-bold">
           <span>Total</span>
           <span className="text-green-400">
@@ -202,6 +407,7 @@ ${pedidoId}
           </span>
         </div>
 
+        {/* PAGAMENTO */}
         <button
           onClick={() => finalizarPedido("entrega")}
           disabled={loading}
