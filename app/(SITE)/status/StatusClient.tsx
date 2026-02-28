@@ -10,7 +10,6 @@ import {
   orderBy,
   Timestamp,
 } from "firebase/firestore";
-
 import { db } from "@/firebase/config";
 import { useCliente } from "@/context/ClientContext";
 
@@ -47,7 +46,7 @@ export default function StatusClient() {
   /* ================= LISTENER ================= */
 
   useEffect(() => {
-    // Se não há cliente identificado, não consulta
+    // 🔹 Sem telefone → não escuta Firestore
     if (!telefone) return;
 
     const q = query(
@@ -59,10 +58,17 @@ export default function StatusClient() {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const lista: Pedido[] = snap.docs.map((doc) => ({
-          id: doc.id,
-          ...(doc.data() as Omit<Pedido, "id">),
-        }));
+        const lista: Pedido[] = snap.docs.map((doc) => {
+          const data = doc.data();
+
+          return {
+            id: doc.id,
+            status: data.status,
+            total: data.total,
+            itens: Array.isArray(data.itens) ? data.itens : [], // 🛡️ proteção
+            createdAt: data.createdAt,
+          };
+        });
 
         setPedidos(lista);
         setLoading(false);
@@ -78,6 +84,7 @@ export default function StatusClient() {
 
   /* ================= UI STATES ================= */
 
+  // 🔹 Sem telefone → nem entra em loading
   if (!telefone) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-4">
@@ -147,18 +154,20 @@ export default function StatusClient() {
             {statusLabel[pedido.status]}
           </p>
 
-          <div className="text-sm text-zinc-300 space-y-1">
-            {pedido.itens.map((item) => (
-              <div key={item.id} className="flex justify-between">
-                <span>
-                  {item.quantidade}x {item.nome}
-                </span>
-                <span>
-                  R$ {(item.preco * item.quantidade).toFixed(2)}
-                </span>
-              </div>
-            ))}
-          </div>
+          {pedido.itens.length > 0 && (
+            <div className="text-sm text-zinc-300 space-y-1">
+              {pedido.itens.map((item) => (
+                <div key={item.id} className="flex justify-between">
+                  <span>
+                    {item.quantidade}x {item.nome}
+                  </span>
+                  <span>
+                    R$ {(item.preco * item.quantidade).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="border-t border-zinc-700 pt-2 flex justify-between font-bold">
             <span>Total</span>
