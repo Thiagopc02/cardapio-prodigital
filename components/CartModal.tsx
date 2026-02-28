@@ -37,7 +37,7 @@ export default function CartModal() {
   const [nome, setNome] = useState(cliente?.nome || "");
   const [telefone, setTelefone] = useState(cliente?.telefone || "");
 
-  // Endereço
+  // Endereço (form)
   const [cep, setCep] = useState("");
   const [rua, setRua] = useState("");
   const [numero, setNumero] = useState("");
@@ -194,7 +194,6 @@ ${pedidoId}
     try {
       setLoading(true);
 
-      // 🔹 Salva cliente no contexto (fonte oficial)
       setCliente({
         id: cliente?.id || crypto.randomUUID(),
         nome,
@@ -222,7 +221,7 @@ ${pedidoId}
         createdAt: serverTimestamp(),
       });
 
-      // opcional: guardar último pedido
+      localStorage.setItem("telefoneCliente", telefoneFormatado);
       localStorage.setItem("ultimoPedidoId", pedidoRef.id);
 
       if (tipo === "entrega") {
@@ -286,7 +285,7 @@ ${pedidoId}
           />
         </div>
 
-        {/* ENDEREÇOS */}
+        {/* ENDEREÇOS SALVOS */}
         {!mostrarFormEndereco && enderecos.length > 0 && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
             <p className="text-sm font-semibold text-zinc-300">
@@ -324,7 +323,10 @@ ${pedidoId}
             ))}
 
             <button
-              onClick={() => setMostrarFormEndereco(true)}
+              onClick={() => {
+                selecionarEndereco(null);
+                setMostrarFormEndereco(true);
+              }}
               className="w-full text-sm text-green-400 font-semibold mt-2"
             >
               ➕ Adicionar novo endereço
@@ -335,6 +337,15 @@ ${pedidoId}
         {/* FORM ENDEREÇO */}
         {mostrarFormEndereco && (
           <div className="bg-zinc-800 p-3 rounded-xl space-y-2">
+            {enderecos.length > 0 && (
+              <button
+                onClick={() => setMostrarFormEndereco(false)}
+                className="w-full text-sm text-green-400 font-semibold mb-2"
+              >
+                ⬅ Usar endereço salvo
+              </button>
+            )}
+
             <input
               className="input"
               placeholder="CEP"

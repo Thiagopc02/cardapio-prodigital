@@ -21,7 +21,7 @@ type AddressContextType = {
   enderecoSelecionado: Endereco | null;
   adicionarEndereco: (endereco: Endereco) => void;
   removerEndereco: (id: string) => void;
-  selecionarEndereco: (id: string) => void;
+  selecionarEndereco: (id: string | null) => void; // ✅ aceita null
   limparEnderecos: () => void;
 };
 
@@ -40,7 +40,7 @@ export function AddressProvider({
 }: {
   children: React.ReactNode;
 }) {
-  /* ✅ Lazy init (resolve o erro do ESLint) */
+  /* ✅ Lazy init (SSR safe) */
   const [enderecos, setEnderecos] = useState<Endereco[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -69,7 +69,7 @@ export function AddressProvider({
 
       const novoEndereco: Endereco = {
         ...endereco,
-        padrao: !existePadrao,
+        padrao: !existePadrao, // primeiro endereço vira padrão
       };
 
       return [...prev, novoEndereco];
@@ -78,7 +78,15 @@ export function AddressProvider({
 
   /* ================= SELECIONAR ================= */
 
-  function selecionarEndereco(id: string) {
+  function selecionarEndereco(id: string | null) {
+    // ✅ LIMPAR seleção (usado ao clicar em "Adicionar novo endereço")
+    if (!id) {
+      setEnderecos((prev) =>
+        prev.map((e) => ({ ...e, padrao: false }))
+      );
+      return;
+    }
+
     setEnderecos((prev) =>
       prev.map((e) => ({
         ...e,
@@ -93,6 +101,7 @@ export function AddressProvider({
     setEnderecos((prev) => {
       const lista = prev.filter((e) => e.id !== id);
 
+      // garante que sempre exista um padrão
       if (!lista.some((e) => e.padrao) && lista.length > 0) {
         return lista.map((e, index) => ({
           ...e,

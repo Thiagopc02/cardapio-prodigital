@@ -1,44 +1,42 @@
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "./config";
+import {
+  PedidoItem,
+  PedidoEndereco,
+  PedidoCliente,
+  PedidoStatus,
+} from "@/types/Pedidos";
 
-/* ================= TIPOS ================= */
+/* =========================
+   INPUT PARA CRIAÇÃO
+   ========================= */
 
-export type PedidoItem = {
-  id: string;
-  nome: string;
-  preco: number;
-  quantidade: number;
-};
-
-export type PedidoInput = {
-  cliente: {
-    uid?: string; // ✅ opcional
-    nome: string;
-    email: string;
-    telefone: string;
-  };
-  endereco: {
-    rua: string;
-    numero: string;
-    bairro: string;
-    cidade: string;
-    uf: string;
-    cep: string;
-    complemento?: string;
-  };
+export type CriarPedidoInput = {
+  clienteId: string; // 🔑 telefone formatado (+55...)
+  cliente: PedidoCliente;
+  endereco: PedidoEndereco;
   itens: PedidoItem[];
   total: number;
-  pagamento: "agora" | "entrega";
-  status?: "novo" | "preparando" | "finalizado";
+  pagamento: {
+    tipo: "entrega" | "mercadopago";
+  };
+  status?: PedidoStatus;
 };
 
-/* ================= CRIAR PEDIDO ================= */
+/* =========================
+   CRIAR PEDIDO (SITE)
+   ========================= */
 
-export async function criarPedido(pedido: PedidoInput) {
+export async function criarPedido(input: CriarPedidoInput): Promise<string> {
   const docRef = await addDoc(collection(db, "pedidos"), {
-    ...pedido,
-    status: pedido.status ?? "novo",
-    criadoEm: serverTimestamp(),
+    clienteId: input.clienteId,
+    cliente: input.cliente,
+    endereco: input.endereco,
+    itens: input.itens,
+    total: input.total,
+    pagamento: input.pagamento,
+    status: input.status ?? "novo",
+    createdAt: serverTimestamp(),
   });
 
   return docRef.id;

@@ -11,7 +11,6 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { useCliente } from "@/context/ClientContext";
 
 /* ================= TIPOS ================= */
 
@@ -36,17 +35,20 @@ type Pedido = {
 
 export default function StatusClient() {
   const router = useRouter();
-  const { cliente } = useCliente();
 
-  const telefone = cliente?.telefone || null;
+  // ✅ client-only, sem useEffect
+  const [telefone] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("telefoneCliente");
+  });
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* ================= LISTENER ================= */
+  /* ================= FIRESTORE LISTENER ================= */
 
   useEffect(() => {
-    // 🔹 Sem telefone → não escuta Firestore
+    // ⚠️ SEM setState aqui
     if (!telefone) return;
 
     const q = query(
@@ -60,12 +62,11 @@ export default function StatusClient() {
       (snap) => {
         const lista: Pedido[] = snap.docs.map((doc) => {
           const data = doc.data();
-
           return {
             id: doc.id,
             status: data.status,
             total: data.total,
-            itens: Array.isArray(data.itens) ? data.itens : [], // 🛡️ proteção
+            itens: Array.isArray(data.itens) ? data.itens : [],
             createdAt: data.createdAt,
           };
         });
@@ -82,22 +83,7 @@ export default function StatusClient() {
     return () => unsubscribe();
   }, [telefone]);
 
-  /* ================= UI STATES ================= */
-
-  // 🔹 Sem telefone → nem entra em loading
-  if (!telefone) {
-    return (
-      <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-4">
-        <p>Nenhum pedido encontrado.</p>
-        <button
-          onClick={() => router.push("/")}
-          className="text-green-400 font-semibold"
-        >
-          ← Voltar para o cardápio
-        </button>
-      </div>
-    );
-  }
+  /* ================= UI ================= */
 
   if (loading) {
     return (
@@ -107,7 +93,7 @@ export default function StatusClient() {
     );
   }
 
-  if (pedidos.length === 0) {
+  if (!telefone || pedidos.length === 0) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-4">
         <p>Nenhum pedido encontrado.</p>
@@ -120,8 +106,6 @@ export default function StatusClient() {
       </div>
     );
   }
-
-  /* ================= STATUS LABEL ================= */
 
   const statusLabel: Record<PedidoStatus, string> = {
     novo: "Pedido recebido",
@@ -154,20 +138,18 @@ export default function StatusClient() {
             {statusLabel[pedido.status]}
           </p>
 
-          {pedido.itens.length > 0 && (
-            <div className="text-sm text-zinc-300 space-y-1">
-              {pedido.itens.map((item) => (
-                <div key={item.id} className="flex justify-between">
-                  <span>
-                    {item.quantidade}x {item.nome}
-                  </span>
-                  <span>
-                    R$ {(item.preco * item.quantidade).toFixed(2)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="text-sm text-zinc-300 space-y-1">
+            {pedido.itens.map((item) => (
+              <div key={item.id} className="flex justify-between">
+                <span>
+                  {item.quantidade}x {item.nome}
+                </span>
+                <span>
+                  R$ {(item.preco * item.quantidade).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
 
           <div className="border-t border-zinc-700 pt-2 flex justify-between font-bold">
             <span>Total</span>
