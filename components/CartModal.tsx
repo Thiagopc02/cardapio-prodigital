@@ -194,6 +194,7 @@ ${pedidoId}
     try {
       setLoading(true);
 
+      // 🔹 Salva cliente no contexto (fonte oficial)
       setCliente({
         id: cliente?.id || crypto.randomUUID(),
         nome,
@@ -221,6 +222,7 @@ ${pedidoId}
         createdAt: serverTimestamp(),
       });
 
+      // opcional: guardar último pedido
       localStorage.setItem("ultimoPedidoId", pedidoRef.id);
 
       if (tipo === "entrega") {
@@ -344,11 +346,38 @@ ${pedidoId}
               }}
               inputMode="numeric"
             />
-            <input className="input" placeholder="Rua" value={rua} onChange={(e) => setRua(e.target.value)} />
-            <input className="input" placeholder="Número" value={numero} onChange={(e) => setNumero(e.target.value.replace(/\D/g, ""))} />
-            <input className="input" placeholder="Bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
-            <input className="input" placeholder="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
-            <input className="input" placeholder="UF" value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} />
+            <input
+              className="input"
+              placeholder="Rua"
+              value={rua}
+              onChange={(e) => setRua(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Número"
+              value={numero}
+              onChange={(e) =>
+                setNumero(e.target.value.replace(/\D/g, ""))
+              }
+            />
+            <input
+              className="input"
+              placeholder="Bairro"
+              value={bairro}
+              onChange={(e) => setBairro(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="Cidade"
+              value={cidade}
+              onChange={(e) => setCidade(e.target.value)}
+            />
+            <input
+              className="input"
+              placeholder="UF"
+              value={uf}
+              onChange={(e) => setUf(e.target.value.toUpperCase())}
+            />
 
             <button
               onClick={salvarEndereco}

@@ -10,7 +10,9 @@ import {
   orderBy,
   Timestamp,
 } from "firebase/firestore";
+
 import { db } from "@/firebase/config";
+import { useCliente } from "@/context/ClientContext";
 
 /* ================= TIPOS ================= */
 
@@ -35,20 +37,17 @@ type Pedido = {
 
 export default function StatusClient() {
   const router = useRouter();
+  const { cliente } = useCliente();
+
+  const telefone = cliente?.telefone || null;
+
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
-
-  /* ================= IDENTIFICAR CLIENTE ================= */
-
-  const telefone =
-    typeof window !== "undefined"
-      ? localStorage.getItem("telefoneCliente")
-      : null;
 
   /* ================= LISTENER ================= */
 
   useEffect(() => {
-    // 🔹 Se não tem telefone, não escuta nada
+    // Se não há cliente identificado, não consulta
     if (!telefone) return;
 
     const q = query(
@@ -66,11 +65,11 @@ export default function StatusClient() {
         }));
 
         setPedidos(lista);
-        setLoading(false); // ✅ permitido (callback externo)
+        setLoading(false);
       },
       () => {
         setPedidos([]);
-        setLoading(false); // ✅ permitido
+        setLoading(false);
       }
     );
 
