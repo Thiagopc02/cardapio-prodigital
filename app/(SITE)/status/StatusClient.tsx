@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { doc, onSnapshot } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
 
 /* ================= TIPOS ================= */
@@ -17,52 +24,65 @@ type ItemPedido = {
 };
 
 type Pedido = {
+  id: string;
   status: PedidoStatus;
   total: number;
   itens: ItemPedido[];
+  createdAt?: Timestamp;
 };
 
 /* ================= COMPONENT ================= */
 
 export default function StatusClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pedidoId = searchParams.get("id");
-
-  const [pedido, setPedido] = useState<Pedido | null>(null);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* ================= REALTIME LISTENER ================= */
-  useEffect(() => {
-    if (!pedidoId) return;
+  /* ================= IDENTIFICAR CLIENTE ================= */
 
-    const ref = doc(db, "pedidos", pedidoId);
+  const telefone =
+    typeof window !== "undefined"
+      ? localStorage.getItem("telefoneCliente")
+      : null;
+
+  /* ================= LISTENER ================= */
+
+  useEffect(() => {
+    // 🔹 Se não tem telefone, não escuta nada
+    if (!telefone) return;
+
+    const q = query(
+      collection(db, "pedidos"),
+      where("clienteId", "==", telefone),
+      orderBy("createdAt", "desc")
+    );
 
     const unsubscribe = onSnapshot(
-      ref,
+      q,
       (snap) => {
-        if (snap.exists()) {
-          setPedido(snap.data() as Pedido);
-        } else {
-          setPedido(null);
-        }
-        setLoading(false);
+        const lista: Pedido[] = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<Pedido, "id">),
+        }));
+
+        setPedidos(lista);
+        setLoading(false); // ✅ permitido (callback externo)
       },
       () => {
-        setPedido(null);
-        setLoading(false);
+        setPedidos([]);
+        setLoading(false); // ✅ permitido
       }
     );
 
     return () => unsubscribe();
-  }, [pedidoId]);
+  }, [telefone]);
 
   /* ================= UI STATES ================= */
 
-  if (!pedidoId) {
+  if (!telefone) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-4">
-        <p>Pedido inválido.</p>
+        <p>Nenhum pedido encontrado.</p>
         <button
           onClick={() => router.push("/")}
           className="text-green-400 font-semibold"
@@ -76,15 +96,15 @@ export default function StatusClient() {
   if (loading) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-        Carregando pedido...
+        Carregando pedidos...
       </div>
     );
   }
 
-  if (!pedido) {
+  if (pedidos.length === 0) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center gap-4">
-        <p>Pedido não encontrado.</p>
+        <p>Nenhum pedido encontrado.</p>
         <button
           onClick={() => router.push("/")}
           className="text-green-400 font-semibold"
@@ -106,7 +126,6 @@ export default function StatusClient() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-4 max-w-md mx-auto space-y-4">
-      {/* VOLTAR */}
       <button
         onClick={() => router.push("/")}
         className="text-green-400 font-semibold"
@@ -114,46 +133,45 @@ export default function StatusClient() {
         ← Voltar para o cardápio
       </button>
 
-      <h1 className="text-xl font-bold">📦 Acompanhar pedido</h1>
+      <h1 className="text-xl font-bold">📦 Meus pedidos</h1>
 
-      <p className="text-sm text-zinc-400">
-        Pedido ID: <span className="break-all">{pedidoId}</span>
-      </p>
+      {pedidos.map((pedido) => (
+        <div
+          key={pedido.id}
+          className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2"
+        >
+          <p className="text-xs text-zinc-400 break-all">
+            Pedido ID: {pedido.id}
+          </p>
 
-      {/* STATUS */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-        <p className="font-semibold mb-2">Status atual</p>
-        <p className="text-green-400 font-bold">
-          {statusLabel[pedido.status]}
-        </p>
-      </div>
+          <p className="font-semibold text-green-400">
+            {statusLabel[pedido.status]}
+          </p>
 
-      {/* ITENS */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-2">
-        {pedido.itens.map((item) => (
-          <div
-            key={item.id}
-            className="flex justify-between text-sm text-zinc-300"
-          >
-            <span>
-              {item.quantidade}x {item.nome}
-            </span>
-            <span>
-              R$ {(item.preco * item.quantidade).toFixed(2)}
+          <div className="text-sm text-zinc-300 space-y-1">
+            {pedido.itens.map((item) => (
+              <div key={item.id} className="flex justify-between">
+                <span>
+                  {item.quantidade}x {item.nome}
+                </span>
+                <span>
+                  R$ {(item.preco * item.quantidade).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="border-t border-zinc-700 pt-2 flex justify-between font-bold">
+            <span>Total</span>
+            <span className="text-green-400">
+              R$ {pedido.total.toFixed(2)}
             </span>
           </div>
-        ))}
-
-        <div className="border-t border-zinc-700 pt-3 flex justify-between font-bold">
-          <span>Total</span>
-          <span className="text-green-400">
-            R$ {pedido.total.toFixed(2)}
-          </span>
         </div>
-      </div>
+      ))}
 
       <p className="text-xs text-zinc-500 text-center">
-        Esta página é atualizada automaticamente conforme o pedido avança.
+        Os pedidos são atualizados automaticamente em tempo real.
       </p>
     </div>
   );
